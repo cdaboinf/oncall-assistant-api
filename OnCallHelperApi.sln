@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OnCallHelperApi", "OnCallHelperApi\OnCallHelperApi.csproj", "{1F157F7B-9F5A-450A-AEBB-2378C02167A3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OnCallHelperApiTests", "OnCallHelperApiTests\OnCallHelperApiTests.csproj", "{462FCB28-4EBF-4976-BA25-DE76A91B950C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1F157F7B-9F5A-450A-AEBB-2378C02167A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1F157F7B-9F5A-450A-AEBB-2378C02167A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1F157F7B-9F5A-450A-AEBB-2378C02167A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1F157F7B-9F5A-450A-AEBB-2378C02167A3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{462FCB28-4EBF-4976-BA25-DE76A91B950C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{462FCB28-4EBF-4976-BA25-DE76A91B950C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{462FCB28-4EBF-4976-BA25-DE76A91B950C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{462FCB28-4EBF-4976-BA25-DE76A91B950C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

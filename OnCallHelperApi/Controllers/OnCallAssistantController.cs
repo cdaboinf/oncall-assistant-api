@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authorization;
+
 namespace OnCallHelperApi.Controllers;
 
 using Microsoft.AspNetCore.Mvc;
@@ -5,6 +7,7 @@ using OnCallHelperApi.Application.Services;
 using OnCallHelperApi.Application.DTOs;
 
 [ApiController]
+[Authorize] 
 [Route("api/oncall")]
 public class OnCallAssistantController : ControllerBase
 {

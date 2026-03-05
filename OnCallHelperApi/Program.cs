@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.OpenApi.Models;
 using OnCallHelperApi.Application.Services;
 using OnCallHelperApi.Infrastructure.Mongo;
 using OnCallHelperApi.Infrastructure.Mongo.Migrations;
@@ -11,7 +13,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
 // Mongo Context
 builder.Services.AddSingleton<MongoContext>();
@@ -27,6 +28,54 @@ builder.Services.AddScoped<IIncidentService, IncidentService>();
 builder.Services.AddSingleton<IEmbeddingService, EmbeddingService>();
 builder.Services.AddScoped<IOnCallAssistantService, OnCallAssistantService>();
 builder.Services.AddSingleton<IOpenAiService, OpenAiService>();
+
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
+    {
+        // Define the Security Scheme
+        var scheme = new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            In = ParameterLocation.Header,
+            Description = "Enter your JWT token"
+        };
+
+        // Add it to the document
+        document.Components ??= new OpenApiComponents();
+        document.Components.SecuritySchemes.Add("Bearer", scheme);
+
+        // Apply it globally
+        document.SecurityRequirements.Add(new OpenApiSecurityRequirement
+        {
+            [new OpenApiSecurityScheme
+                {
+                    Reference = new OpenApiReference
+                    {
+                        Id = "Bearer", Type = ReferenceType.SecurityScheme
+                    }
+                }] = Array.Empty<string>()
+        });
+
+        return Task.CompletedTask;
+    });
+});
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = "https://dev-k0sl1xaa1o87ofbn.us.auth0.com/";
+        options.Audience = "http://localhost:5172";
+
+        // Optional: Validate token lifetime, issuer, etc.
+        options.TokenValidationParameters.ValidateIssuer = true;
+        options.TokenValidationParameters.ValidateAudience = true;
+        options.TokenValidationParameters.ValidateLifetime = true;
+    });
+
+builder.Services.AddAuthorization();
 
 // ----------------------------
 // Build the app
@@ -46,20 +95,20 @@ using (var scope = app.Services.CreateScope())
     await runner.RunAsync();
 }
 
-// ----------------------------
-// Configure middleware
-// ----------------------------
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "OnCallHelper API V1");
-    });
+    // This maps the JSON endpoint (usually /openapi/v1.json)
+    app.MapOpenApi();
+
+    // If you still want the Swagger UI visual interface:
+    app.UseSwaggerUI(options => { options.SwaggerEndpoint("/openapi/v1.json", "v1"); });
 }
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();

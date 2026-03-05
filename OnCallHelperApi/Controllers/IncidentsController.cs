@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using OnCallHelperApi.Application.DTOs.Incident;
 using OnCallHelperApi.Application.Services;
 
@@ -6,6 +7,7 @@ namespace OnCallHelperApi.Controllers;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
+[Authorize] 
 [Route("api/[controller]")]
 public class IncidentsController : ControllerBase
 {

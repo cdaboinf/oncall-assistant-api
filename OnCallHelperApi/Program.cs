@@ -51,12 +51,12 @@ builder.Services.AddOpenApi(options =>
         document.SecurityRequirements.Add(new OpenApiSecurityRequirement
         {
             [new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
                 {
-                    Reference = new OpenApiReference
-                    {
-                        Id = "Bearer", Type = ReferenceType.SecurityScheme
-                    }
-                }] = Array.Empty<string>()
+                    Id = "Bearer", Type = ReferenceType.SecurityScheme
+                }
+            }] = Array.Empty<string>()
         });
 
         return Task.CompletedTask;
@@ -76,6 +76,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+
+const string CorsPolicyName = "UiCorsPolicy";
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                     ?? ["http://localhost:8080", "http://127.0.0.1:8080"];
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(CorsPolicyName, policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 // ----------------------------
 // Build the app
@@ -105,6 +119,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors(CorsPolicyName);
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -1,0 +1,17 @@
+{
+  "name": "oncall-helper-ui",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "serve": "vue-cli-service serve --host 0.0.0.0 --port 5172",
+    "build": "vue-cli-service build"
+  },
+  "dependencies": {
+    "@auth0/auth0-vue": "^2.3.0",
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "@vue/cli-service": "^5.0.8",
+    "@vue/cli-plugin-babel": "^5.0.8"
+  }
+}

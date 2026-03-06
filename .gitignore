@@ -57,3 +57,4 @@ appsettings.*.json
 node_modules/
 package-lock.json
 package.json
+!OnCallHelperUiCli/package.json

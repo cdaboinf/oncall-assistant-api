@@ -7,6 +7,15 @@
         API Base URL
         <input v-model="apiBaseUrl" placeholder="http://localhost:5000" />
       </label>
+      <label>
+        Bearer Token
+        <input
+          v-model="bearerToken"
+          type="password"
+          autocomplete="off"
+          placeholder="Paste JWT token for secured endpoints"
+        />
+      </label>
     </header>
 
     <main class="grid">
@@ -64,9 +73,14 @@
 import { reactive, ref, watch } from 'vue';
 
 const apiBaseUrl = ref(localStorage.getItem('apiBaseUrl') || 'http://localhost:5000');
+const bearerToken = ref(localStorage.getItem('bearerToken') || '');
 
 watch(apiBaseUrl, (value) => {
   localStorage.setItem('apiBaseUrl', value);
+});
+
+watch(bearerToken, (value) => {
+  localStorage.setItem('bearerToken', value);
 });
 
 const newIncident = reactive({
@@ -89,6 +103,21 @@ const errors = reactive({ create: '', analyze: '', similar: '', all: '' });
 const loading = reactive({ create: false, analyze: false, similar: false, all: false });
 
 const endpoint = (path) => `${apiBaseUrl.value.replace(/\/$/, '')}${path}`;
+const authHeaders = () => {
+  const headers = { 'Content-Type': 'application/json' };
+  if (bearerToken.value.trim()) {
+    headers.Authorization = `Bearer ${bearerToken.value.trim()}`;
+  }
+  return headers;
+};
+
+const authOnlyHeaders = () => {
+  if (bearerToken.value.trim()) {
+    return { Authorization: `Bearer ${bearerToken.value.trim()}` };
+  }
+  return {};
+};
+
 const pretty = (value) => JSON.stringify(value, null, 2);
 const clearError = (key) => { errors[key] = ''; };
 
@@ -107,7 +136,7 @@ const createIncident = async () => {
 
     const response = await fetch(endpoint('/api/incidents'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify(payload)
     });
 
@@ -128,7 +157,7 @@ const analyzeIncident = async () => {
   try {
     const response = await fetch(endpoint('/api/oncall/analyze'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ description: analysisDescription.value })
     });
 
@@ -147,7 +176,7 @@ const findSimilar = async () => {
   try {
     const response = await fetch(endpoint('/api/incidents/similar'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify(similarRequest)
     });
 
@@ -164,7 +193,9 @@ const loadIncidents = async () => {
   clearError('all');
   loading.all = true;
   try {
-    const response = await fetch(endpoint('/api/incidents'));
+    const response = await fetch(endpoint('/api/incidents'), {
+      headers: authOnlyHeaders()
+    });
     if (!response.ok) throw new Error(await response.text());
     incidents.value = await response.json();
   } catch (error) {

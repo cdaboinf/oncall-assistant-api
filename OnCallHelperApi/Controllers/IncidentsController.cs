@@ -1,13 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using OnCallHelperApi.Application.DTOs.Incident;
 using OnCallHelperApi.Application.Services;
 
 namespace OnCallHelperApi.Controllers;
 
-using Microsoft.AspNetCore.Mvc;
-
 [ApiController]
-[Authorize] 
+[Authorize]
 [Route("api/[controller]")]
 public class IncidentsController : ControllerBase
 {
@@ -24,14 +23,11 @@ public class IncidentsController : ControllerBase
         var id = await _service.CreateAsync(request);
         return Ok(new { Id = id });
     }
-    
-    [HttpPost("similar")]
-    public async Task<IActionResult> FindSimilar(
-        [FromBody] SimilarIncidentsRequest request)
-    {
-        var result = await _service
-            .FindSimilarIncidentsAsync(request.Description, request.Top);
 
+    [HttpPost("similar")]
+    public async Task<IActionResult> FindSimilar([FromBody] SimilarIncidentsRequest request)
+    {
+        var result = await _service.FindSimilarIncidentsAsync(request.Description, request.Top);
         return Ok(result);
     }
 

@@ -26,6 +26,8 @@ npm run serve
 
 Then open `http://localhost:8080`.
 
+> Note: API endpoints are protected with JWT bearer auth. Paste a valid token in the **Bearer Token** field in the UI before calling the API.
+
 ## Build
 
 ```bash

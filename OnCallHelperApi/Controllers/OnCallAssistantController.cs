@@ -1,13 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using OnCallHelperApi.Application.DTOs;
+using OnCallHelperApi.Application.Services;
 
 namespace OnCallHelperApi.Controllers;
 
-using Microsoft.AspNetCore.Mvc;
-using OnCallHelperApi.Application.Services;
-using OnCallHelperApi.Application.DTOs;
-
 [ApiController]
-[Authorize] 
+[Authorize]
 [Route("api/oncall")]
 public class OnCallAssistantController : ControllerBase
 {
@@ -19,11 +18,9 @@ public class OnCallAssistantController : ControllerBase
     }
 
     [HttpPost("analyze")]
-    public async Task<ActionResult<OnCallAssistantResponse>> Analyze(
-        [FromBody] AnalyzeIncidentRequest request)
+    public async Task<ActionResult<OnCallAssistantResponse>> Analyze([FromBody] AnalyzeIncidentRequest request)
     {
         var result = await _assistant.AnalyzeIncidentAsync(request.Description);
-
         return Ok(result);
     }
 }

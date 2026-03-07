@@ -18,7 +18,16 @@
       </label>
     </header>
 
-    <main class="grid">
+    <nav class="page-nav" aria-label="Dashboard sections">
+      <a href="/incidents" class="nav-btn" :class="{ active: routePath === '/incidents' }" @click.prevent="navigate('/incidents')">
+        Incidents
+      </a>
+      <a href="/analysis" class="nav-btn" :class="{ active: routePath === '/analysis' }" @click.prevent="navigate('/analysis')">
+        Analysis
+      </a>
+    </nav>
+
+    <main v-if="routePath === '/incidents'" class="grid">
       <section class="card">
         <h2>Create Incident</h2>
         <label>Title <input v-model="newIncident.title" /></label>
@@ -35,23 +44,6 @@
         <p v-if="errors.create" class="error">{{ errors.create }}</p>
       </section>
 
-      <section class="card">
-        <h2>Analyze Incident</h2>
-        <label>Description <textarea v-model="analysisDescription"></textarea></label>
-        <button @click="analyzeIncident" :disabled="loading.analyze">{{ loading.analyze ? 'Analyzing...' : 'Analyze' }}</button>
-        <p v-if="errors.analyze" class="error">{{ errors.analyze }}</p>
-        <pre v-if="analysisResult">{{ pretty(analysisResult) }}</pre>
-      </section>
-
-      <section class="card wide">
-        <h2>Find Similar Incidents</h2>
-        <label>Description <textarea v-model="similarRequest.description"></textarea></label>
-        <label>Top <input type="number" min="1" max="20" v-model.number="similarRequest.top" /></label>
-        <button @click="findSimilar" :disabled="loading.similar">{{ loading.similar ? 'Searching...' : 'Find Similar' }}</button>
-        <p v-if="errors.similar" class="error">{{ errors.similar }}</p>
-        <pre v-if="similarResults">{{ pretty(similarResults) }}</pre>
-      </section>
-
       <section class="card wide">
         <h2>All Incidents</h2>
         <button @click="loadIncidents" :disabled="loading.all">{{ loading.all ? 'Loading...' : 'Refresh Incidents' }}</button>
@@ -66,11 +58,57 @@
         <p v-else class="meta">No incidents loaded.</p>
       </section>
     </main>
+
+    <main v-else class="grid">
+      <section class="card wide">
+        <h2>Analyze Incident</h2>
+        <label>Description <textarea v-model="analysisDescription"></textarea></label>
+        <button @click="analyzeIncident" :disabled="loading.analyze">{{ loading.analyze ? 'Analyzing...' : 'Analyze' }}</button>
+        <p v-if="errors.analyze" class="error">{{ errors.analyze }}</p>
+        <pre v-if="analysisResult" class="pre-wrap">{{ pretty(analysisResult) }}</pre>
+      </section>
+
+      <section class="card wide">
+        <h2>Find Similar Incidents</h2>
+        <label>Description <textarea v-model="similarRequest.description"></textarea></label>
+        <label>Top <input type="number" min="1" max="20" v-model.number="similarRequest.top" /></label>
+        <button @click="findSimilar" :disabled="loading.similar">{{ loading.similar ? 'Searching...' : 'Find Similar' }}</button>
+        <p v-if="errors.similar" class="error">{{ errors.similar }}</p>
+        <pre v-if="similarResults" class="pre-wrap">{{ pretty(similarResults) }}</pre>
+      </section>
+    </main>
   </div>
 </template>
 
 <script setup>
-import { reactive, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+
+const allowedPaths = ['/incidents', '/analysis'];
+const normalizePath = (path) => (allowedPaths.includes(path) ? path : '/incidents');
+const routePath = ref(normalizePath(window.location.pathname));
+
+const onPopState = () => {
+  routePath.value = normalizePath(window.location.pathname);
+};
+
+const navigate = (path) => {
+  const normalizedPath = normalizePath(path);
+  if (window.location.pathname !== normalizedPath) {
+    window.history.pushState({}, '', normalizedPath);
+  }
+  routePath.value = normalizedPath;
+};
+
+onMounted(() => {
+  if (window.location.pathname !== routePath.value) {
+    window.history.replaceState({}, '', routePath.value);
+  }
+  window.addEventListener('popstate', onPopState);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('popstate', onPopState);
+});
 
 const apiBaseUrl = ref(localStorage.getItem('apiBaseUrl') || 'http://localhost:5000');
 const bearerToken = ref(localStorage.getItem('bearerToken') || '');

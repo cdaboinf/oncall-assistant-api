@@ -58,3 +58,31 @@ node_modules/
 package-lock.json
 package.json
 !OnCallHelperUiCli/package.json
+
+# Local .terraform directories
+.terraform/
+**/.terraform*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude all .tfvars files, which likely contain sensitive data
+# These should not be part of version control
+# Use a different mechanism for managing environment-specific variables
+*.tfvars
+*.tfvars.json
+
+# Optional: ignore CLI configuration files
+.terraformrc
+terraform.rc
+
+# Optional: ignore override files as they are usually used to override resources locally
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

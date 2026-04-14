@@ -28,7 +28,7 @@
     </nav>
 
     <main v-if="routePath === '/incidents'" class="grid">
-      <section class="card">
+      <section class="card wide" >
         <h2>Create Incident</h2>
         <label>Title <input v-model="newIncident.title" /></label>
         <label>Description <textarea v-model="newIncident.description"></textarea></label>

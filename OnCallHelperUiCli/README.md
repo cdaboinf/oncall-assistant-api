@@ -40,3 +40,29 @@ npm run build
 - `GET /api/incidents`
 - `POST /api/incidents/similar`
 - `POST /api/oncall/analyze`
+
+## Run in Docker (portable for Windows/macOS/Linux)
+
+Build the image from the repo root:
+
+Inside directory: /OnCallHelperUiCli
+```bash
+docker build -t oncall-helper-ui:latest .
+```
+
+Run the container and expose it on port `8080`:
+
+```bash
+docker run --rm -p 8080:80 --name oncall-helper-ui oncall-helper-ui:latest
+```
+
+Then open `http://localhost:8080` on any machine running Docker Desktop (including Windows PCs).
+
+### Publish and share image (optional): docker account: cedaboin
+
+If you want teammates to run the same UI image without building locally, push it to a registry (Docker Hub, ECR, GHCR) and they can run:
+
+```bash
+docker pull <your-registry>/oncall-helper-ui:latest
+docker run --rm -p 8080:80 <your-registry>/oncall-helper-ui:latest
+```

@@ -122,18 +122,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 const string CorsPolicyName = "UiCorsPolicy";
-var allowedOrigins = builder.Configuration
+/*var allowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
     .Get<string[]>()
-    ?? ["http://localhost:8080", "http://127.0.0.1:8080"];
+    ?? ["http://localhost:8080", "http://127.0.0.1:8080"];*/
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicyName, policy =>
     {
-        policy.WithOrigins(allowedOrigins)
+        policy
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowAnyOrigin();
     });
 });
 

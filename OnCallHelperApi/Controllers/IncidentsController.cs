@@ -30,6 +30,13 @@ public class IncidentsController : ControllerBase
         var result = await _service.FindSimilarIncidentsAsync(request.Description, request.Top);
         return Ok(result);
     }
+    
+    [HttpPost("rebuild-embeddings")]
+    public async Task<IActionResult> RebuildEmbeddings()
+    {
+        var updated = await _service.RebuildEmbeddingsAsync();
+        return Ok(new { Updated = updated });
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetAll()

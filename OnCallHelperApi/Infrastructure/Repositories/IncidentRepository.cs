@@ -6,18 +6,18 @@ using OnCallHelperApi.Infrastructure.Mongo;
 
 namespace OnCallHelperApi.Infrastructure.Repositories;
 
-public class IncidentRepository : IIncidentRepository
+public class IncidentRepository(MongoContext context) : IIncidentRepository
 {
-    private readonly IMongoCollection<Incident> _collection;
-
-    public IncidentRepository(MongoContext context)
-    {
-        _collection = context.Database.GetCollection<Incident>("incidents");
-    }
+    private readonly IMongoCollection<Incident> _collection = context.Database.GetCollection<Incident>("incidents");
 
     public async Task CreateAsync(Incident incident)
     {
         await _collection.InsertOneAsync(incident);
+    }
+    
+    public async Task UpdateAsync(Incident incident)
+    {
+        await _collection.ReplaceOneAsync(x => x.Id == incident.Id, incident);
     }
 
     public async Task<Incident?> GetByIdAsync(string id)
@@ -36,28 +36,13 @@ public class IncidentRepository : IIncidentRepository
         var queryVector = embedding.Select(f => (double)f).ToArray();
 
         // Build the $vectorSearch pipeline
-        /*var pipeline = new[]
-        {
-            new BsonDocument
-            {
-                { "$vectorSearch", new BsonDocument
-                    {
-                        { "index", "vector_index" },       // Make sure this matches your actual index name
-                        { "path", "Embedding" },           // Make sure this matches your collection's embedding field
-                        { "queryVector", new BsonArray(queryVector) },
-                        { "numCandidates", 50 },
-                        { "limit", top }
-                    }
-                }
-            }
-        };*/
         var pipeline = new[]
         {
             new BsonDocument("$vectorSearch", new BsonDocument
             {
                 { "index", "vector_index" },
-                { "path", "Embedding" },
-                { "queryVector", new BsonArray(embedding) },
+                { "path", "Embedding" }, // Embedding
+                { "queryVector", new BsonArray(queryVector) },
                 { "numCandidates", 50 },
                 { "limit", top }
             }),
@@ -65,23 +50,13 @@ public class IncidentRepository : IIncidentRepository
             {
                 { "score", new BsonDocument("$meta", "vectorSearchScore") }
             })
-            /*new BsonDocument("$project", new BsonDocument
-            {
-                { "_id", 1 },
-                { "title", 1 },
-                { "serviceName", 1 },
-                { "environment", 1 },
-                { "severity", 1 },
-                { "resolvedBy", 1 },
-                { "description", 1 },
-                { "createdAt", 1 },
-                { "score", new BsonDocument("$meta", "vectorSearchScore") }
-            })*/
         };
-
+        
         // Execute the aggregation
-        return await _collection
+        var ragResult = await _collection
             .Aggregate<Incident>(pipeline)
             .ToListAsync();
+        
+        return ragResult; 
     }
 }

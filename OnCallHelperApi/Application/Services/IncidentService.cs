@@ -75,6 +75,29 @@ public class IncidentService : IIncidentService
             .Select(MapToResponse)
             .ToList();
     }
+    
+    public async Task<int> RebuildEmbeddingsAsync()
+    {
+        var incidents = await _repository.GetAllAsync();
+        var updatedCount = 0;
+
+        foreach (var incident in incidents)
+        {
+            var description = incident.Metadata?.Description;
+            if (string.IsNullOrWhiteSpace(description))
+            {
+                continue;
+            }
+
+            incident.Embedding = await _embeddingService.GetEmbeddingAsync(description);
+            incident.EmbeddingVersion = 1;
+
+            await _repository.UpdateAsync(incident);
+            updatedCount++;
+        }
+
+        return updatedCount;
+    }
 
     // Helper: map Incident -> IncidentResponse
     private static IncidentResponse MapToResponse(Incident incident)

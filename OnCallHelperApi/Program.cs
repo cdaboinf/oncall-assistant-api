@@ -1,8 +1,10 @@
 using Amazon.Lambda.AspNetCoreServer.Hosting;
 using Amazon.SimpleSystemsManagement;
 using Amazon.SimpleSystemsManagement.Model;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.OpenApi.Models;
+using OnCallHelperApi.Infrastructure.Auth;
 using OnCallHelperApi.Application.Services;
 using OnCallHelperApi.Infrastructure.Mongo;
 using OnCallHelperApi.Infrastructure.Mongo.Migrations;
@@ -108,16 +110,30 @@ builder.Services.AddOpenApi(options =>
     });
 });
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.Authority = builder.Configuration["Auth0:Authority"];
-        options.Audience = builder.Configuration["Auth0:Audience"];
+// Auth can be disabled for local/personal use so the UI works without a token.
+// Set "Auth:Enabled": false in appsettings.Development.json (or the ONCALL_AUTH_ENABLED env var).
+var authEnabled = builder.Configuration.GetValue("Auth:Enabled", true);
 
-        options.TokenValidationParameters.ValidateIssuer = true;
-        options.TokenValidationParameters.ValidateAudience = true;
-        options.TokenValidationParameters.ValidateLifetime = true;
-    });
+if (authEnabled)
+{
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.Authority = builder.Configuration["Auth0:Authority"];
+            options.Audience = builder.Configuration["Auth0:Audience"];
+
+            options.TokenValidationParameters.ValidateIssuer = true;
+            options.TokenValidationParameters.ValidateAudience = true;
+            options.TokenValidationParameters.ValidateLifetime = true;
+        });
+}
+else
+{
+    // Dev scheme: every request is treated as an authenticated local user,
+    // so [Authorize] controllers work without pasting a token.
+    builder.Services.AddAuthentication(DevAuthHandler.SchemeName)
+        .AddScheme<AuthenticationSchemeOptions, DevAuthHandler>(DevAuthHandler.SchemeName, _ => { });
+}
 
 builder.Services.AddAuthorization();
 
@@ -155,8 +171,10 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
+// CORS must run before HTTPS redirection so cross-origin preflight responses
+// (and any redirect) still carry the Access-Control-Allow-Origin header.
 app.UseCors(CorsPolicyName);
+app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();

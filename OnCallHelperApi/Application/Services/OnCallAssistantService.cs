@@ -1,5 +1,6 @@
 using System.Text;
 using OnCallHelperApi.Application.DTOs;
+using OnCallHelperApi.Application.Mapping;
 using OnCallHelperApi.Domain;
 using OnCallHelperApi.Infrastructure.Repositories;
 
@@ -21,8 +22,19 @@ public class OnCallAssistantService : IOnCallAssistantService
         _openAiService = openAiService;
     }
 
-    public async Task<OnCallAssistantResponse> AnalyzeIncidentAsync(string description)
+    public async Task<TriageResult> AnalyzeIncidentAsync(string description)
     {
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            return new TriageResult
+            {
+                Analysis = new OnCallAssistantResponse
+                {
+                    Summary = "Provide an alert or symptom description to analyze."
+                }
+            };
+        }
+
         // 1️⃣ Generate embedding
         var embedding = await _embeddingService.GetEmbeddingAsync(description);
 
@@ -35,7 +47,12 @@ public class OnCallAssistantService : IOnCallAssistantService
         // 4️⃣ Call OpenAI
         var aiResult = await _openAiService.GenerateStructuredResponseAsync(prompt);
 
-        return aiResult;
+        // 5️⃣ Return guidance plus the evidence it was based on
+        return new TriageResult
+        {
+            Analysis = aiResult,
+            SimilarIncidents = similarIncidents.Select(IncidentMapper.ToResponse).ToList()
+        };
     }
 
     private string BuildPrompt(string description, List<Incident> similar)

@@ -9,5 +9,6 @@ public interface IIncidentRepository
     Task UpdateAsync(Incident incident);
     Task<Incident?> GetByIdAsync(string id);
     Task<List<Incident>> GetAllAsync();
+    Task<List<Incident>> SearchAsync(IncidentSearchRequest query);
     Task<List<Incident>> FindSimilarAsync(float[] embedding, int top);
 }

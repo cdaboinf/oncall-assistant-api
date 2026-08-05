@@ -1,3 +1,4 @@
+using System.ClientModel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OnCallHelperApi.Application.DTOs;
@@ -18,9 +19,21 @@ public class OnCallAssistantController : ControllerBase
     }
 
     [HttpPost("analyze")]
-    public async Task<ActionResult<OnCallAssistantResponse>> Analyze([FromBody] AnalyzeIncidentRequest request)
+    public async Task<ActionResult<TriageResult>> Analyze([FromBody] AnalyzeIncidentRequest request)
     {
-        var result = await _assistant.AnalyzeIncidentAsync(request.Description);
-        return Ok(result);
+        try
+        {
+            var result = await _assistant.AnalyzeIncidentAsync(request.Description);
+            return Ok(result);
+        }
+        catch (ClientResultException ex)
+        {
+            // OpenAI errors (quota exhausted, rate limit, auth) -> clean message for the UI.
+            return StatusCode(StatusCodes.Status502BadGateway, new
+            {
+                error = "The AI service is unavailable right now.",
+                detail = ex.Message
+            });
+        }
     }
 }

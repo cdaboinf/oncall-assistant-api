@@ -3,6 +3,7 @@ namespace OnCallHelperApi.Application.Services;
 using DTOs.Incident;
 using Domain;
 using Infrastructure.Repositories;
+using Mapping;
 
 public class IncidentService : IIncidentService
 {
@@ -51,14 +52,21 @@ public class IncidentService : IIncidentService
         var incident = await _repository.GetByIdAsync(id);
         if (incident == null) return null;
 
-        return MapToResponse(incident);
+        return IncidentMapper.ToResponse(incident);
     }
 
     // Get all incidents
     public async Task<List<IncidentResponse>> GetAllAsync()
     {
         var incidents = await _repository.GetAllAsync();
-        return incidents.Select(MapToResponse).ToList();
+        return incidents.Select(IncidentMapper.ToResponse).ToList();
+    }
+
+    // Search / filter incident history
+    public async Task<List<IncidentResponse>> SearchAsync(IncidentSearchRequest query)
+    {
+        var incidents = await _repository.SearchAsync(query);
+        return incidents.Select(IncidentMapper.ToResponse).ToList();
     }
 
     // Optional: find similar incidents based on embedding
@@ -72,7 +80,7 @@ public class IncidentService : IIncidentService
 
         // 3️⃣ Map to response
         return similarIncidents
-            .Select(MapToResponse)
+            .Select(IncidentMapper.ToResponse)
             .ToList();
     }
     
@@ -97,30 +105,5 @@ public class IncidentService : IIncidentService
         }
 
         return updatedCount;
-    }
-
-    // Helper: map Incident -> IncidentResponse
-    private static IncidentResponse MapToResponse(Incident incident)
-    {
-        return new IncidentResponse
-        {
-            Id = incident.Id,
-            Title = incident.Title,
-            Description = incident.Metadata?.Description ?? string.Empty, // ensure description exists
-            ServiceName = incident.Metadata?.ServiceName ?? string.Empty,
-            Environment = incident.Metadata?.Environment ?? string.Empty,
-            Severity = incident.Metadata?.Severity ?? string.Empty,
-            Score = incident.Score,
-            CreatedAt = incident.CreatedAt,
-            Resolution = incident.Resolution != null 
-                ? new IncidentResolution
-                {
-                    RootCause = incident.Resolution?.RootCause,
-                    Summary = incident.Resolution?.Summary,
-                    StepsTaken = incident.Resolution?.StepsTaken ?? [],
-                    ResolvedBy = incident.Resolution?.ResolvedBy
-                }
-                : null
-        };
     }
 }

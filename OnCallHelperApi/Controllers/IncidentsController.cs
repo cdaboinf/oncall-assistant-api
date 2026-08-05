@@ -1,3 +1,4 @@
+using System.ClientModel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OnCallHelperApi.Application.DTOs.Incident;
@@ -20,28 +21,57 @@ public class IncidentsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(CreateIncidentRequest request)
     {
-        var id = await _service.CreateAsync(request);
-        return Ok(new { Id = id });
+        try
+        {
+            var id = await _service.CreateAsync(request);
+            return Ok(new { Id = id });
+        }
+        catch (ClientResultException ex)
+        {
+            return AiUnavailable(ex);
+        }
     }
 
     [HttpPost("similar")]
     public async Task<IActionResult> FindSimilar([FromBody] SimilarIncidentsRequest request)
     {
-        var result = await _service.FindSimilarIncidentsAsync(request.Description, request.Top);
-        return Ok(result);
+        try
+        {
+            var result = await _service.FindSimilarIncidentsAsync(request.Description, request.Top);
+            return Ok(result);
+        }
+        catch (ClientResultException ex)
+        {
+            return AiUnavailable(ex);
+        }
     }
-    
+
     [HttpPost("rebuild-embeddings")]
     public async Task<IActionResult> RebuildEmbeddings()
     {
-        var updated = await _service.RebuildEmbeddingsAsync();
-        return Ok(new { Updated = updated });
+        try
+        {
+            var updated = await _service.RebuildEmbeddingsAsync();
+            return Ok(new { Updated = updated });
+        }
+        catch (ClientResultException ex)
+        {
+            return AiUnavailable(ex);
+        }
     }
 
+    // Embedding generation goes through OpenAI; surface quota/rate-limit errors cleanly.
+    private IActionResult AiUnavailable(ClientResultException ex) =>
+        StatusCode(StatusCodes.Status502BadGateway, new
+        {
+            error = "The AI service is unavailable right now.",
+            detail = ex.Message
+        });
+
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] IncidentSearchRequest query)
     {
-        var incidents = await _service.GetAllAsync();
+        var incidents = await _service.SearchAsync(query);
         return Ok(incidents);
     }
 }

@@ -48,6 +48,14 @@ Build the image from the repo root:
 Inside directory: /OnCallHelperUiCli
 ```bash
 docker build -t oncall-helper-ui:latest .
+
+docker buildx build \
+  --platform linux/amd64 \
+  --provenance=false \
+  -t cedaboin/oncall-helper-ui:v1.0.1 \
+  -f Dockerfile \
+  . \
+  --push
 ```
 
 Run the container and expose it on port `8080`:
@@ -59,6 +67,9 @@ docker run --rm -p 8080:80 --name oncall-helper-ui oncall-helper-ui:latest
 Then open `http://localhost:8080` on any machine running Docker Desktop (including Windows PCs).
 
 ### Publish and share image (optional): docker account: cedaboin
+```bash
+docker push cedaboin/oncall-helper-ui:v1
+```
 
 If you want teammates to run the same UI image without building locally, push it to a registry (Docker Hub, ECR, GHCR) and they can run:
 

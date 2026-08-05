@@ -48,17 +48,41 @@ public class OpenAiService : IOpenAiService
             new UserChatMessage(prompt)
         };
 
-        ChatCompletion completion = await _chatClient.CompleteChatAsync(messages);
+        // Force the model to return a JSON object so parsing is reliable.
+        var options = new ChatCompletionOptions
+        {
+            ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
+        };
 
-        var json = completion.Content[0].Text;
+        ChatCompletion completion = await _chatClient.CompleteChatAsync(messages, options);
 
-        var result = JsonSerializer.Deserialize<OnCallAssistantResponse>(
-            json,
-            new JsonSerializerOptions
+        var json = completion.Content.Count > 0 ? completion.Content[0].Text : null;
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return new OnCallAssistantResponse
             {
-                PropertyNameCaseInsensitive = true
-            });
+                Summary = "The assistant returned an empty response. Try again or rephrase the description."
+            };
+        }
 
-        return result ?? new OnCallAssistantResponse();
+        try
+        {
+            var result = JsonSerializer.Deserialize<OnCallAssistantResponse>(
+                json,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+            return result ?? new OnCallAssistantResponse();
+        }
+        catch (JsonException)
+        {
+            return new OnCallAssistantResponse
+            {
+                Summary = "The assistant response could not be parsed as structured JSON.",
+                LikelyRootCause = json
+            };
+        }
     }
 }

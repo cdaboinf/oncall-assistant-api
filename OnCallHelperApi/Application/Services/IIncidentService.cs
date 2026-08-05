@@ -8,6 +8,7 @@ public interface IIncidentService
     Task<string> CreateAsync(CreateIncidentRequest request);
     Task<IncidentResponse?> GetByIdAsync(string id);
     Task<List<IncidentResponse>> GetAllAsync();
+    Task<List<IncidentResponse>> SearchAsync(IncidentSearchRequest query);
     Task<List<IncidentResponse>> FindSimilarIncidentsAsync(string description, int top = 5);
     Task<int> RebuildEmbeddingsAsync();
 }

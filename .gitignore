@@ -89,3 +89,7 @@ override.tf.json
 
 # UI build output
 dist/
+
+# Terraform plan output
+tfplan
+*.tfplan

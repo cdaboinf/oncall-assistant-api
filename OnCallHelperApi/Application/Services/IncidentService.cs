@@ -9,11 +9,27 @@ public class IncidentService : IIncidentService
 {
     private readonly IIncidentRepository _repository;
     private readonly IEmbeddingService _embeddingService;
+    private readonly IOpenAiService _openAiService;
 
-    public IncidentService(IIncidentRepository repository, IEmbeddingService embeddingService)
+    public IncidentService(
+        IIncidentRepository repository,
+        IEmbeddingService embeddingService,
+        IOpenAiService openAiService)
     {
         _repository = repository;
         _embeddingService = embeddingService;
+        _openAiService = openAiService;
+    }
+
+    // Extract an incident draft from free-form text (e.g. a pasted Slack thread)
+    public async Task<CreateIncidentRequest> ExtractDraftAsync(string conversation)
+    {
+        if (string.IsNullOrWhiteSpace(conversation))
+        {
+            return new CreateIncidentRequest();
+        }
+
+        return await _openAiService.ExtractIncidentFromConversationAsync(conversation);
     }
 
     // Create a new incident with embedding

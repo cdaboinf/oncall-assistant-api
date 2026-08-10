@@ -6,6 +6,7 @@ namespace OnCallHelperApi.Application.Services;
 public interface IIncidentService
 {
     Task<string> CreateAsync(CreateIncidentRequest request);
+    Task<CreateIncidentRequest> ExtractDraftAsync(string conversation);
     Task<IncidentResponse?> GetByIdAsync(string id);
     Task<List<IncidentResponse>> GetAllAsync();
     Task<List<IncidentResponse>> SearchAsync(IncidentSearchRequest query);

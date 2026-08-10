@@ -32,6 +32,25 @@ public class IncidentsController : ControllerBase
         }
     }
 
+    [HttpPost("extract")]
+    public async Task<IActionResult> ExtractDraft([FromBody] ExtractIncidentRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Conversation))
+        {
+            return BadRequest(new { error = "Conversation text is required." });
+        }
+
+        try
+        {
+            var draft = await _service.ExtractDraftAsync(request.Conversation);
+            return Ok(draft);
+        }
+        catch (ClientResultException ex)
+        {
+            return AiUnavailable(ex);
+        }
+    }
+
     [HttpPost("similar")]
     public async Task<IActionResult> FindSimilar([FromBody] SimilarIncidentsRequest request)
     {

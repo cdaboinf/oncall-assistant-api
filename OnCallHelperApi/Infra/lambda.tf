@@ -12,6 +12,9 @@ resource "aws_lambda_function" "api" {
   environment {
     variables = {
       ASPNETCORE_ENVIRONMENT         = var.environment
+
+      # Enforce Auth0 JWT validation in the deployed API.
+      Auth__Enabled                  = "true"
       Auth0__Authority               = var.auth0_authority
       Auth0__Audience                = var.auth0_audience
 

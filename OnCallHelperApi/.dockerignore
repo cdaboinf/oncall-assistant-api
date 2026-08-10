@@ -1,0 +1,11 @@
+# Build artifacts (regenerated inside the image)
+bin/
+obj/
+
+# Terraform state contains secrets — never send it into the Docker build context
+Infra/
+
+# IDE / local files
+.idea/
+*.user
+*.DS_Store

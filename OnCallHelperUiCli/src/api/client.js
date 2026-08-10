@@ -87,6 +87,10 @@ export const api = {
     return request('/api/incidents', { method: 'POST', body: payload });
   },
 
+  extractIncident(conversation) {
+    return request('/api/incidents/extract', { method: 'POST', body: { conversation } });
+  },
+
   analyze(description) {
     return request('/api/oncall/analyze', { method: 'POST', body: { description } });
   },

@@ -1,7 +1,9 @@
 # OnCall Helper API — AWS deploy runbook
 
 How to ship C#/Lambda changes to AWS. The API runs as a **container image on
-Lambda**, fronted by an **API Gateway HTTP API**. Terraform manages all the AWS
+Lambda**, fronted by an **API Gateway HTTP API**, with **CloudFront** on a custom
+domain (`api.oncallhelper.com`) in front so networks that block
+`*.execute-api.amazonaws.com` still allow it. Terraform manages all the AWS
 resources; the application code ships as a Docker image in ECR.
 
 ## Key facts
@@ -12,9 +14,17 @@ resources; the application code ships as a Docker image in ECR.
 | Region | `us-east-1` |
 | Lambda function | `oncall-helper-api-prod` |
 | ECR repo | `848362861133.dkr.ecr.us-east-1.amazonaws.com/oncall-helper-api-prod` |
-| Live API URL | `https://a4ak402qf5.execute-api.us-east-1.amazonaws.com` |
+| **Public API URL** | `https://api.oncallhelper.com` (use this) |
+| API Gateway origin | `https://a4ak402qf5.execute-api.us-east-1.amazonaws.com` (behind CloudFront) |
+| CloudFront domain | `d22bqsx5mg3g9t.cloudfront.net` (distribution `E5M5693PBGTZ`) |
+| ACM cert | `*.oncallhelper.com`, DNS-validated, **free**, auto-renews, in `us-east-1` |
 | Lambda arch | `x86_64` (Dockerfile is pinned to `linux/amd64` to match) |
 | Auth0 audience | `http://localhost:5172` (API identifier — not a URL) |
+
+### Costs
+Only the **domain** (~$12–20/yr, GoDaddy) is a real cost. The ACM certificate is
+**free**, and CloudFront usage falls within the AWS free tier (1 TB out + 10M
+requests/month). No fixed monthly fees.
 
 All commands below are run **from this `Infra/` folder**. The Docker build
 context is the project root (`..`), where the `Dockerfile` and `.csproj` live.
@@ -121,6 +131,56 @@ Parameter names: `/oncall-helper/prod/OpenAI__ApiKey`,
   **Allowed Callback URLs / Logout URLs / Web Origins** in the Auth0 dashboard.
 - The SPA must be authorized for this API under **APIs → OnCallHelperApi →
   Application Access** (User-delegated Access).
+
+## Custom domain via CloudFront (api.oncallhelper.com)
+
+CloudFront fronts the API on `https://api.oncallhelper.com` so networks that block
+`*.execute-api.amazonaws.com` still allow it. **Already deployed** — this section
+is for reference / rebuilding from scratch.
+
+**Terraform (`cloudfront.tf`, plus `providers.tf` / `variables.tf`):**
+- `provider "aws"` alias **`us_east_1`** — CloudFront certs must live in us-east-1.
+- `aws_acm_certificate.cf` — **free** wildcard cert `*.oncallhelper.com`, DNS-validated.
+- `aws_acm_certificate_validation.cf` — waits until the cert is ISSUED (validation
+  record is added manually in GoDaddy since DNS is external).
+- `aws_cloudfront_distribution.api` — origin = the API Gateway; forwards the
+  Authorization header + query strings and disables caching via AWS managed
+  policies (`AllViewerExceptHostHeader` + `CachingDisabled`); alias
+  `api.oncallhelper.com`; `PriceClass_100` (cheapest).
+- Outputs: `acm_validation_record`, `cloudfront_domain`, `api_public_url`.
+
+DNS is at **GoDaddy**, so cert validation + the `api` record are added there
+manually. Two-step because the cert must be ISSUED before CloudFront can attach it:
+
+**Step 1 — create the cert and get the validation record:**
+```bash
+terraform apply -target=aws_acm_certificate.cf
+terraform output acm_validation_record
+```
+In **GoDaddy DNS**, add that as a **CNAME** — Name = the record name with
+`.oncallhelper.com` stripped off (e.g. `_abc123` or `_abc123.api`), Value = the
+`value` shown. Wait a few minutes for ACM to show **Issued**:
+```bash
+aws acm list-certificates --region us-east-1 --query "CertificateSummaryList[?DomainName=='*.oncallhelper.com']"
+```
+
+**Step 2 — create CloudFront and get the api record:**
+```bash
+terraform apply
+terraform output cloudfront_domain
+```
+In **GoDaddy DNS**, add a **CNAME**: Name = `api`, Value = the `cloudfront_domain`
+(e.g. `d123.cloudfront.net`). CloudFront takes ~5–15 min to deploy. Then:
+```bash
+curl -sI https://api.oncallhelper.com/api/incidents   # expect HTTP/2 401
+```
+
+**Point the UI at it:** `.env.production` already uses `https://api.oncallhelper.com`
+— rebuild/repush the UI image (see UI deploy) once the domain resolves.
+
+Notes: Auth0 audience stays `http://localhost:5172` (unchanged). The CloudFront
+behavior forwards the Authorization header and disables caching (managed policies),
+so tokens pass through and responses aren't cached.
 
 ## Rollback
 

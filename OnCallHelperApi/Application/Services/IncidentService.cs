@@ -1,5 +1,6 @@
 namespace OnCallHelperApi.Application.Services;
 
+using System.ClientModel;
 using DTOs.Incident;
 using Domain;
 using Infrastructure.Repositories;
@@ -9,11 +10,27 @@ public class IncidentService : IIncidentService
 {
     private readonly IIncidentRepository _repository;
     private readonly IEmbeddingService _embeddingService;
+    private readonly IOpenAiService _openAiService;
 
-    public IncidentService(IIncidentRepository repository, IEmbeddingService embeddingService)
+    public IncidentService(
+        IIncidentRepository repository,
+        IEmbeddingService embeddingService,
+        IOpenAiService openAiService)
     {
         _repository = repository;
         _embeddingService = embeddingService;
+        _openAiService = openAiService;
+    }
+
+    // Extract an incident draft from free-form text (e.g. a pasted Slack thread)
+    public async Task<CreateIncidentRequest> ExtractDraftAsync(string conversation)
+    {
+        if (string.IsNullOrWhiteSpace(conversation))
+        {
+            return new CreateIncidentRequest();
+        }
+
+        return await _openAiService.ExtractIncidentFromConversationAsync(conversation);
     }
 
     // Create a new incident with embedding
@@ -44,6 +61,51 @@ public class IncidentService : IIncidentService
 
         await _repository.CreateAsync(incident);
         return incident.Id;
+    }
+
+    // Update an existing incident's properties
+    public async Task<IncidentResponse?> UpdateAsync(string id, CreateIncidentRequest request)
+    {
+        var incident = await _repository.GetByIdAsync(id);
+        if (incident == null) return null;
+
+        var previousDescription = incident.Metadata?.Description;
+
+        incident.Title = request.Title;
+        incident.Metadata = new IncidentMetadata
+        {
+            ServiceName = request.ServiceName,
+            Environment = request.Environment,
+            Severity = request.Severity,
+            Description = request.Description
+        };
+        incident.Resolution = request.Resolution != null
+            ? new IncidentResolution
+            {
+                RootCause = request.Resolution.RootCause,
+                Summary = request.Resolution.Summary,
+                StepsTaken = request.Resolution.StepsTaken,
+                ResolvedBy = request.Resolution.ResolvedBy
+            }
+            : null;
+
+        // Re-embed only when the description changed. Best-effort: if the AI service
+        // is unavailable (e.g. no credits), keep the old embedding so the edit still saves.
+        if (!string.IsNullOrWhiteSpace(request.Description) && request.Description != previousDescription)
+        {
+            try
+            {
+                incident.Embedding = await _embeddingService.GetEmbeddingAsync(request.Description);
+                incident.EmbeddingVersion = 1;
+            }
+            catch (ClientResultException)
+            {
+                // Keep the previous embedding; metadata/resolution edits still persist.
+            }
+        }
+
+        await _repository.UpdateAsync(incident);
+        return IncidentMapper.ToResponse(incident);
     }
 
     // Get incident by ID

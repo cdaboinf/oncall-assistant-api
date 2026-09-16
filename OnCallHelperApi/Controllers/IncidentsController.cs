@@ -32,6 +32,40 @@ public class IncidentsController : ControllerBase
         }
     }
 
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(string id, [FromBody] CreateIncidentRequest request)
+    {
+        try
+        {
+            var updated = await _service.UpdateAsync(id, request);
+            if (updated == null) return NotFound(new { error = "Incident not found." });
+            return Ok(updated);
+        }
+        catch (ClientResultException ex)
+        {
+            return AiUnavailable(ex);
+        }
+    }
+
+    [HttpPost("extract")]
+    public async Task<IActionResult> ExtractDraft([FromBody] ExtractIncidentRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Conversation))
+        {
+            return BadRequest(new { error = "Conversation text is required." });
+        }
+
+        try
+        {
+            var draft = await _service.ExtractDraftAsync(request.Conversation);
+            return Ok(draft);
+        }
+        catch (ClientResultException ex)
+        {
+            return AiUnavailable(ex);
+        }
+    }
+
     [HttpPost("similar")]
     public async Task<IActionResult> FindSimilar([FromBody] SimilarIncidentsRequest request)
     {

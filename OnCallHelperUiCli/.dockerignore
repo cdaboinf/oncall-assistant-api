@@ -4,3 +4,7 @@ dist
 .gitignore
 npm-debug.log*
 .DS_Store
+
+# Local-only env; the image build uses .env.production
+.env
+.env*.local

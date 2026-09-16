@@ -26,6 +26,18 @@ variable "cors_allowed_origins" {
   type = list(string)
 }
 
+# Custom domain served by CloudFront in front of the API (VPN-friendly hostname).
+variable "api_custom_domain" {
+  type    = string
+  default = "api.oncallhelper.com"
+}
+
+# ACM certificate domain. A wildcard covers api. and any future subdomains.
+variable "cert_domain_name" {
+  type    = string
+  default = "*.oncallhelper.com"
+}
+
 variable "openai_api_key_parameter_name" {
   type = string
 }

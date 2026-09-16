@@ -2,7 +2,10 @@
   <article class="incident">
     <div class="incident-head">
       <div class="incident-title">{{ incident.title }}</div>
-      <span v-if="scoreLabel" class="score-pill" :title="'Similarity score'">{{ scoreLabel }}</span>
+      <div class="row" style="gap: 0.4rem; flex-wrap: nowrap">
+        <span v-if="scoreLabel" class="score-pill" :title="'Similarity score'">{{ scoreLabel }}</span>
+        <button v-if="editable" class="btn ghost small" type="button" @click="$emit('edit', incident)">Edit</button>
+      </div>
     </div>
 
     <div class="incident-badges">
@@ -54,8 +57,10 @@ import { computed, ref } from 'vue';
 import SeverityBadge from './SeverityBadge.vue';
 
 const props = defineProps({
-  incident: { type: Object, required: true }
+  incident: { type: Object, required: true },
+  editable: { type: Boolean, default: false }
 });
+defineEmits(['edit']);
 
 const expanded = ref(false);
 

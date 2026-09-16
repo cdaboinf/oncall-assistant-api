@@ -138,19 +138,30 @@ else
 builder.Services.AddAuthorization();
 
 const string CorsPolicyName = "UiCorsPolicy";
-/*var allowedOrigins = builder.Configuration
+
+// Origins come from config (Cors:AllowedOrigins, set via the Cors__AllowedOrigins__N
+// Lambda env vars). If none are configured, allow any origin so the API can be
+// called from anywhere. Add origins to lock CORS down without a code change.
+var allowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
     .Get<string[]>()
-    ?? ["http://localhost:8080", "http://127.0.0.1:8080"];*/
+    ?.Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .ToArray() ?? [];
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicyName, policy =>
     {
-        policy
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowAnyOrigin();
+        policy.AllowAnyHeader().AllowAnyMethod();
+
+        if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins);
+        }
+        else
+        {
+            policy.AllowAnyOrigin();
+        }
     });
 });
 

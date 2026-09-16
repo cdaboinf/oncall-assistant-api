@@ -1,5 +1,5 @@
 import { reactive } from 'vue';
-import { getAccessToken } from '../auth';
+import { getAccessToken, isConfigured, markSignedOut } from '../auth';
 
 // Base URL is configurable (defaults from .env); the token comes from Auth0.
 export const apiState = reactive({
@@ -48,10 +48,24 @@ async function request(path, { method = 'GET', body, useAuth = true } = {}) {
   }
 
   if (!response.ok) {
-    const message =
+    // A 401 on an authenticated call means the token is missing/expired/invalid.
+    // Reset the auth state so the UI shows "signed out" and prompts a re-login,
+    // instead of keeping a stale logged-in name with no valid bearer token.
+    if (response.status === 401 && useAuth && isConfigured()) {
+      markSignedOut();
+    }
+
+    let message =
       (data && (data.error || data.detail)) ||
       (typeof data === 'string' && data) ||
       `Request failed (${response.status})`;
+
+    if (response.status === 401) {
+      message = isConfigured()
+        ? 'Your session has expired. Please sign in again.'
+        : 'Not authorized — this API requires sign-in.';
+    }
+
     const err = new Error(message);
     err.status = response.status;
     err.detail = data && data.detail;
@@ -85,6 +99,10 @@ export const api = {
 
   createIncident(payload) {
     return request('/api/incidents', { method: 'POST', body: payload });
+  },
+
+  updateIncident(id, payload) {
+    return request(`/api/incidents/${id}`, { method: 'PUT', body: payload });
   },
 
   extractIncident(conversation) {

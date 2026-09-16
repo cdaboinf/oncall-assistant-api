@@ -69,14 +69,28 @@ export async function logout() {
   await c.logout({ logoutParams: { returnTo: window.location.origin } });
 }
 
+// Reflect a lost/invalid session in the shared auth state so the UI stops
+// showing the user as logged in and prompts them to sign in again.
+export function markSignedOut() {
+  authState.isAuthenticated = false;
+  authState.user = null;
+}
+
 // Returns an access token for the API audience, or null if not signed in.
+// Keeps authState in sync: if the session is gone or a silent refresh fails,
+// the UI reflects "signed out" rather than a stale logged-in name.
 export async function getAccessToken() {
   if (!isConfigured()) return null;
   try {
     const c = await getClient();
-    if (!(await c.isAuthenticated())) return null;
+    if (!(await c.isAuthenticated())) {
+      markSignedOut();
+      return null;
+    }
     return await c.getTokenSilently();
   } catch {
+    // e.g. refresh token expired / login required
+    markSignedOut();
     return null;
   }
 }

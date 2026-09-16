@@ -43,13 +43,26 @@
 
     <div style="margin-top: 1.1rem">
       <div v-if="incidents.length">
-        <IncidentCard v-for="inc in incidents" :key="inc.id" :incident="inc" />
+        <IncidentCard
+          v-for="inc in incidents"
+          :key="inc.id"
+          :incident="inc"
+          editable
+          @edit="startEdit"
+        />
       </div>
       <div v-else-if="!loading" class="empty">
         <div class="big">{{ error ? '⚠️' : '🔍' }}</div>
         <div>{{ emptyMessage }}</div>
       </div>
     </div>
+
+    <EditIncidentModal
+      v-if="editing"
+      :incident="editing"
+      @saved="onSaved"
+      @close="editing = null"
+    />
   </div>
 </template>
 
@@ -57,12 +70,24 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { api } from '../api/client';
 import IncidentCard from '../components/IncidentCard.vue';
+import EditIncidentModal from '../components/EditIncidentModal.vue';
 
 const filters = reactive({ q: '', serviceName: '', severity: '', environment: '', limit: 100 });
 const incidents = ref([]);
 const loading = ref(false);
 const error = ref('');
 const hasSearched = ref(false);
+const editing = ref(null);
+
+const startEdit = (incident) => {
+  editing.value = incident;
+};
+
+const onSaved = (updated) => {
+  const i = incidents.value.findIndex((x) => x.id === updated.id);
+  if (i !== -1) incidents.value[i] = updated;
+  editing.value = null;
+};
 
 const emptyMessage = computed(() => {
   if (error.value) return "Couldn't load incidents.";

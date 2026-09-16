@@ -1,5 +1,6 @@
 namespace OnCallHelperApi.Application.Services;
 
+using System.ClientModel;
 using DTOs.Incident;
 using Domain;
 using Infrastructure.Repositories;
@@ -60,6 +61,51 @@ public class IncidentService : IIncidentService
 
         await _repository.CreateAsync(incident);
         return incident.Id;
+    }
+
+    // Update an existing incident's properties
+    public async Task<IncidentResponse?> UpdateAsync(string id, CreateIncidentRequest request)
+    {
+        var incident = await _repository.GetByIdAsync(id);
+        if (incident == null) return null;
+
+        var previousDescription = incident.Metadata?.Description;
+
+        incident.Title = request.Title;
+        incident.Metadata = new IncidentMetadata
+        {
+            ServiceName = request.ServiceName,
+            Environment = request.Environment,
+            Severity = request.Severity,
+            Description = request.Description
+        };
+        incident.Resolution = request.Resolution != null
+            ? new IncidentResolution
+            {
+                RootCause = request.Resolution.RootCause,
+                Summary = request.Resolution.Summary,
+                StepsTaken = request.Resolution.StepsTaken,
+                ResolvedBy = request.Resolution.ResolvedBy
+            }
+            : null;
+
+        // Re-embed only when the description changed. Best-effort: if the AI service
+        // is unavailable (e.g. no credits), keep the old embedding so the edit still saves.
+        if (!string.IsNullOrWhiteSpace(request.Description) && request.Description != previousDescription)
+        {
+            try
+            {
+                incident.Embedding = await _embeddingService.GetEmbeddingAsync(request.Description);
+                incident.EmbeddingVersion = 1;
+            }
+            catch (ClientResultException)
+            {
+                // Keep the previous embedding; metadata/resolution edits still persist.
+            }
+        }
+
+        await _repository.UpdateAsync(incident);
+        return IncidentMapper.ToResponse(incident);
     }
 
     // Get incident by ID

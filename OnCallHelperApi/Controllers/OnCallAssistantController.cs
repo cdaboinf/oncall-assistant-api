@@ -23,7 +23,7 @@ public class OnCallAssistantController : ControllerBase
     {
         try
         {
-            var result = await _assistant.AnalyzeIncidentAsync(request.Description);
+            var result = await _assistant.AnalyzeIncidentAsync(request.Description, request.Brief);
             return Ok(result);
         }
         catch (ClientResultException ex)

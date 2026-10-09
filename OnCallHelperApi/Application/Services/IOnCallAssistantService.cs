@@ -4,5 +4,5 @@ namespace OnCallHelperApi.Application.Services;
 
 public interface IOnCallAssistantService
 {
-    Task<TriageResult> AnalyzeIncidentAsync(string description);
+    Task<TriageResult> AnalyzeIncidentAsync(string description, bool brief = false);
 }

@@ -22,7 +22,7 @@ public class OnCallAssistantService : IOnCallAssistantService
         _openAiService = openAiService;
     }
 
-    public async Task<TriageResult> AnalyzeIncidentAsync(string description)
+    public async Task<TriageResult> AnalyzeIncidentAsync(string description, bool brief = false)
     {
         if (string.IsNullOrWhiteSpace(description))
         {
@@ -42,7 +42,7 @@ public class OnCallAssistantService : IOnCallAssistantService
         var similarIncidents = await _incidentRepository.FindSimilarAsync(embedding, 3);
 
         // 3️⃣ Build prompt
-        var prompt = BuildPrompt(description, similarIncidents);
+        var prompt = BuildPrompt(description, similarIncidents, brief);
 
         // 4️⃣ Call OpenAI
         var aiResult = await _openAiService.GenerateStructuredResponseAsync(prompt);
@@ -55,7 +55,37 @@ public class OnCallAssistantService : IOnCallAssistantService
         };
     }
 
-    private string BuildPrompt(string description, List<Incident> similar)
+    // Used only when the caller asks for brief output (e.g. the MCP server).
+    // Same JSON fields as the default prompt, so the response shape never changes.
+    private const string BriefInstructions = """
+        Respond with structured JSON using the same fields as always, but be brief and practical.
+        Write for an engineer in the middle of an incident: no background lessons, no filler.
+
+        summary: at most 2 sentences. What is most likely happening.
+        likelyRootCause: 1-2 sentences, naming the specific cause from the past incidents if one clearly applies.
+        immediateActions: at most 5 items, most important first, each one a single concrete step (command, check or owner), not a generic best practice.
+        longTermFixes: at most 2 items, only if the past incidents point to one; otherwise [].
+        escalationRecommendation: 1 sentence: when and who.
+        slackMessageDraft: "" (leave empty).
+        statusPageDraft: "" (leave empty).
+        confidenceScore: 0 to 1.
+
+        Rules:
+        - Ground every claim in the past incidents above. Do not invent systems, commands or details.
+        - When a past incident clearly matches, build immediateActions from the "Resolution Steps" that
+          actually fixed it, adapted to the new incident and ordered for what to try first. Name the
+          past incident in the step (e.g. "As in 'Payment service pods crashing': check the DB host env var").
+          Only add generic checks if fewer than 3 steps come from past incidents.
+        - If past incidents point to different causes, list the cause that best fits the new facts first
+          and say which fact would tell the user it is the wrong one.
+        - If none of the past incidents clearly matches the new incident, say so plainly in summary,
+          give only generic first checks that are safe to run, and keep confidenceScore below 0.4.
+        - If key information is missing (for example service or environment), mention in summary
+          what you would need to know, instead of guessing.
+        Return JSON only.
+        """;
+
+    private string BuildPrompt(string description, List<Incident> similar, bool brief)
     {
         var sb = new StringBuilder();
 
@@ -95,6 +125,12 @@ public class OnCallAssistantService : IOnCallAssistantService
             sb.AppendLine($"Resolved By: {incident.Resolution?.ResolvedBy}");
             sb.AppendLine($"Similarity Score: {incident.Score}");
             sb.AppendLine("-----------------------------------");
+        }
+
+        if (brief)
+        {
+            sb.AppendLine(BriefInstructions);
+            return sb.ToString();
         }
 
         sb.AppendLine(@"

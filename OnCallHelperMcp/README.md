@@ -20,7 +20,18 @@ to ask clarifying questions, re-triage as new facts arrive, and get approval bef
 
 ## Config (env vars)
 - `ONCALL_API_BASE_URL` – default `http://localhost:5172`
-- `ONCALL_API_TOKEN` – bearer token; not needed when the API runs with `Auth:Enabled=false`
+- `ONCALL_API_TOKEN` – fixed bearer token (manual override; it expires). Not needed when the API runs with `Auth:Enabled=false`
+
+### Authenticating to the deployed API (Auth0 machine-to-machine)
+Create an Auth0 **Machine to Machine** application authorized for the API (`OnCallHelperApi`), then set:
+- `ONCALL_AUTH0_DOMAIN` – e.g. `dev-k0sl1xaa1o87ofbn.us.auth0.com`
+- `ONCALL_AUTH0_CLIENT_ID`
+- `ONCALL_AUTH0_CLIENT_SECRET` – **secret**; keep it out of git and chat
+- `ONCALL_AUTH0_AUDIENCE` – optional, defaults to `http://localhost:5172` (the API identifier)
+
+The server fetches a token with the client-credentials grant, caches it until ~60s before expiry, and
+on a 401 refreshes it and retries once. If `ONCALL_API_TOKEN` is set it takes priority. If only some
+`ONCALL_AUTH0_*` variables are set, calls fail with a message naming the missing ones.
 
 ## Run / register
 ```bash

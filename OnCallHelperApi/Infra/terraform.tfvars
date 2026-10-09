@@ -1,7 +1,7 @@
 aws_region  = "us-east-1"
 app_name    = "oncall-helper-api"
 environment = "prod"
-image_tag   = "96263fc"
+image_tag   = "ea26d1e"
 
 auth0_authority = "https://dev-k0sl1xaa1o87ofbn.us.auth0.com/"
 auth0_audience  = "http://localhost:5172"

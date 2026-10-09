@@ -182,6 +182,51 @@ Notes: Auth0 audience stays `http://localhost:5172` (unchanged). The CloudFront
 behavior forwards the Authorization header and disables caching (managed policies),
 so tokens pass through and responses aren't cached.
 
+## MongoDB Atlas vector index (required for triage)
+
+Similar-incident search (`/api/oncall/analyze`, `/api/incidents/similar`) runs an Atlas
+`$vectorSearch` and **the app never creates the index** (the migrations in `Program.cs` are
+commented out). It lives only in Atlas, so if it is deleted, searches silently return `[]`
+and triage falls back to generic advice (no error is raised).
+
+| Setting | Value |
+|---|---|
+| Index type | **Vector Search** (Atlas Search tab, not the regular "Indexes" tab) |
+| Index name | `vector_index` (hard-coded in `IncidentRepository.FindSimilarAsync`) |
+| Database | the one in `Mongo__Database` (SSM `/oncall-helper/prod/Mongo__Database`) |
+| Collection | `incidents` |
+| Embeddings | "Bring your own embeddings" (the API generates them with OpenAI `text-embedding-3-small`) |
+
+Definition (JSON editor):
+
+```json
+{
+  "fields": [
+    {
+      "type": "vector",
+      "path": "Embedding",
+      "numDimensions": 1536,
+      "similarity": "cosine"
+    }
+  ]
+}
+```
+
+Create it in Atlas: cluster → **Atlas Search** → **Create Search Index** → **Vector Search** →
+JSON Editor. Wait until the status is **Active/Ready**.
+
+Check it works (any running API; use a real incident topic from your history):
+
+```bash
+curl -s -X POST http://localhost:5172/api/incidents/similar \
+  -H 'Content-Type: application/json' \
+  -d '{"description":"credit card payments not reflecting","top":3}'
+```
+
+An empty `[]` means the index is missing/not ready, or incidents have no `Embedding`. In the
+second case, `POST /api/incidents/rebuild-embeddings` regenerates them (writes to the database
+and uses OpenAI credits). If you change the embedding model, `numDimensions` must change too.
+
 ## Rollback
 
 Set `image_tag` back to the previous tag in `terraform.tfvars`, then:
@@ -200,5 +245,6 @@ terraform plan -out=tfplan && terraform apply tfplan
 | Lambda starts but crashes with exec/format error | Image built for arm64. Dockerfile is pinned to `linux/amd64`; always keep `--platform linux/amd64`. |
 | `terraform apply` shows no Lambda change after a new push | You reused the same `image_tag`. Bump it (golden rule). |
 | ECR push `denied` | Login token expired (~12h). Re-run step 2. |
+| Triage works but gives generic answers, `similarIncidents` is empty | The Atlas `vector_index` is missing or not Ready. See **MongoDB Atlas vector index**. |
 | API returns 401 | Expected without a valid Auth0 Bearer token — auth is enforced in prod. |
 | Terraform state | Local (`terraform.tfstate` in this folder, git-ignored, contains secrets — do not commit or share). |

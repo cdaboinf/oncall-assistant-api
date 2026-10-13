@@ -33,6 +33,23 @@ The server fetches a token with the client-credentials grant, caches it until ~6
 on a 401 refreshes it and retries once. If `ONCALL_API_TOKEN` is set it takes priority. If only some
 `ONCALL_AUTH0_*` variables are set, calls fail with a message naming the missing ones.
 
+## Hosted mode (HTTP, behind Auth0)
+The same project also runs as a hosted Streamable HTTP server. It starts in this mode with `--http`,
+`ONCALL_MCP_MODE=http`, or automatically inside AWS Lambda; otherwise it uses stdio.
+
+Every request needs an Auth0 access token whose audience is the server's identifier, **and** whose
+`sub` is on the allowlist. An empty allowlist rejects everyone. Settings (no defaults for the first three):
+- `MCP_PUBLIC_URL` – the server's public URL = the Auth0 API identifier (e.g. `https://mcp.oncallhelper.com`)
+- `MCP_AUTHORITY` – the Auth0 tenant URL (issuer)
+- `MCP_ALLOWED_USER_IDS` – comma-separated Auth0 user ids (`sub`) allowed to connect
+- `ONCALL_API_BASE_URL`, `ONCALL_AUTH0_*` – how the server calls the API (see above)
+- Any of `ONCALL_AUTH0_CLIENT_ID`, `ONCALL_AUTH0_CLIENT_SECRET`, `MCP_ALLOWED_USER_IDS` can be supplied
+  from SSM by setting `<NAME>_PARAM` to the parameter's name (read at startup).
+- `MCP_ALLOW_INSECURE_AUTHORITY=true` – local tests against a fake http issuer only. Never in production.
+
+Tokens are accepted with at most 30 seconds of clock skew. The MCP endpoint is `/` (so the resource URL
+equals the Auth0 API identifier); the only unauthenticated paths are the OAuth metadata documents.
+
 ## Run / register
 ```bash
 dotnet build OnCallHelperMcp -c Release

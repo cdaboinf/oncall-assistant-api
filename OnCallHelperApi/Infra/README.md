@@ -182,6 +182,113 @@ Notes: Auth0 audience stays `http://localhost:5172` (unchanged). The CloudFront
 behavior forwards the Authorization header and disables caching (managed policies),
 so tokens pass through and responses aren't cached.
 
+## Hosted MCP server (mcp.oncallhelper.com)
+
+The `OnCallHelperMcp` project in HTTP mode, so LLM clients (Claude on the web/desktop/phone) can use the
+incident tools without anything running on your laptop. Defined in **`mcp.tf`**; same shape as the API
+(container image on Lambda → API Gateway HTTP API → CloudFront), but with its own ECR repo, IAM role
+(can read only the three MCP parameters), log group, gateway and distribution. It reuses the existing
+wildcard certificate and calls the API at `api.oncallhelper.com` with an Auth0 machine-to-machine token.
+
+**Who can connect:** only requests carrying an Auth0 access token for audience
+`https://mcp.oncallhelper.com` whose `sub` is in `Mcp__AllowedUserIds`. No token → 401; valid token for
+another user → 403; empty allowlist → everyone rejected.
+
+| Thing | Value |
+|---|---|
+| Lambda / log group | `oncall-helper-mcp-prod` / `/aws/lambda/oncall-helper-mcp-prod` |
+| ECR repo | `848362861133.dkr.ecr.us-east-1.amazonaws.com/oncall-helper-mcp-prod` |
+| Public URL (= Auth0 API identifier) | `https://mcp.oncallhelper.com` |
+| SSM parameters | `/oncall-helper/prod/Mcp__Auth0ClientId`, `…/Mcp__Auth0ClientSecret`, `…/Mcp__AllowedUserIds` |
+
+### One-time Auth0 setup (tenant `dev-k0sl1xaa1o87ofbn`)
+1. **API** `OnCall Helper MCP`, identifier `https://mcp.oncallhelper.com`, RS256, *Allow Offline Access* on.
+2. **Application** `Claude connector` (Regular Web Application): callback URLs
+   `https://claude.ai/api/mcp/auth_callback` and `https://claude.com/api/mcp/auth_callback`;
+   grant types Authorization Code + Refresh Token.
+3. **Settings → Advanced:** turn on *Resource Parameter Compatibility Profile* and *Include Issuer in
+   Authorization Responses*. Leave *Dynamic Client Registration* off.
+4. **Database connection → Settings:** *Disable Sign Ups* (create users in the dashboard instead).
+5. The existing machine-to-machine app (used for local calls to the API) must be authorized for
+   `OnCallHelperApi`. Its client id/secret go into SSM below.
+
+### First deploy
+All commands run from this `Infra/` folder. Each step that changes AWS is preceded by `plan`.
+
+```bash
+export ACCOUNT_ID=848362861133 REGION=us-east-1
+export MCP_REPO=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/oncall-helper-mcp-prod
+```
+
+**1. Create only the (empty) image repository.** The Lambda cannot exist before its image does.
+```bash
+terraform plan -target=aws_ecr_repository.mcp
+terraform apply -target=aws_ecr_repository.mcp
+```
+
+**2. Create the three SSM parameters** (values are yours; `read -s` keeps the secret out of your
+shell history and the screen):
+```bash
+read -s -p "M2M client id: " V; echo
+aws ssm put-parameter --region $REGION --type SecureString --name /oncall-helper/prod/Mcp__Auth0ClientId --value "$V"
+read -s -p "M2M client secret: " V; echo
+aws ssm put-parameter --region $REGION --type SecureString --name /oncall-helper/prod/Mcp__Auth0ClientSecret --value "$V"
+read -p "Allowed Auth0 user id (auth0|...): " V
+aws ssm put-parameter --region $REGION --type SecureString --name /oncall-helper/prod/Mcp__AllowedUserIds --value "$V"
+unset V
+```
+Several users: comma-separate the ids in the last parameter.
+
+**3. Build for x86_64 and push** (`--provenance=false` is required, same as the API). The build context
+is the MCP project folder:
+```bash
+export TAG=$(git rev-parse --short HEAD)
+aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
+docker buildx build --platform linux/amd64 --provenance=false -t $MCP_REPO:$TAG --push ../../OnCallHelperMcp
+```
+
+**4. Set `mcp_image_tag = "<TAG>"` in `terraform.tfvars`, review, apply.** The plan must say
+`12 to add, 0 to change, 0 to destroy`; if it shows any change to an existing resource, stop.
+```bash
+terraform plan -out=tfplan
+terraform apply tfplan
+```
+
+**5. DNS (GoDaddy, manual).** Add a **CNAME**: Name = `mcp`, Value = the output below. Do **not** use
+the API's CloudFront domain. CloudFront takes ~5–15 min to deploy.
+```bash
+terraform output mcp_cloudfront_domain
+```
+
+**6. Verify** (no token must be rejected, and the sign-in metadata must be public):
+```bash
+dig +short CNAME mcp.oncallhelper.com
+curl -si https://mcp.oncallhelper.com/ | head -5                 # expect 401 + WWW-Authenticate: Bearer resource_metadata=...
+curl -s https://mcp.oncallhelper.com/.well-known/oauth-protected-resource   # JSON: resource + authorization_servers
+aws logs tail /aws/lambda/oncall-helper-mcp-prod --region $REGION --since 10m
+```
+
+**7. Connect Claude.** In Claude: *Settings → Connectors → Add custom connector*, URL
+`https://mcp.oncallhelper.com`; under *Advanced settings* enter the **Client ID and Client Secret of the
+`Claude connector` Auth0 application**. Sign in with your Auth0 user when prompted. Start with a
+read-only request ("search my last 3 incidents") before using `create_incident`/`update_incident`.
+Menu labels may differ slightly between Claude versions.
+
+### Later releases
+Push a new tag (steps 3–4). Rotating a secret: `aws ssm put-parameter --overwrite ...`; the Lambda picks
+it up on its next cold start. **Rollback:** set `mcp_image_tag` back to the previous tag, plan, apply.
+
+### MCP troubleshooting
+| Symptom | Cause / fix |
+|---|---|
+| `plan` fails: "Push the MCP image … set mcp_image_tag" | `mcp_image_tag` is still `"unset"`. Do steps 1–3, then set the tag. |
+| `https://mcp.oncallhelper.com` 403 / "Bad request" from CloudFront | CNAME missing, or it points at the API's CloudFront domain. Use `terraform output mcp_cloudfront_domain`. |
+| Sign-in fails with an audience/userinfo error | *Resource Parameter Compatibility Profile* is off (Auth0 step 3), or the API identifier isn't exactly `https://mcp.oncallhelper.com` (no trailing slash). |
+| Sign-in works but every request is 403 | Your `sub` is not in `Mcp__AllowedUserIds` (check the exact `auth0\|…` id), or the parameter is empty. |
+| Every request 401 after sign-in | Token audience/issuer mismatch: check `MCP_PUBLIC_URL`/`MCP_AUTHORITY` in the Lambda env and the Auth0 API identifier. |
+| Tools return "Auth0 rejected the token request" | Wrong M2M client id/secret in SSM, or the M2M app isn't authorized for `OnCallHelperApi`. |
+| Lambda fails to start | `aws logs tail /aws/lambda/oncall-helper-mcp-prod`. A missing `MCP_PUBLIC_URL`/`MCP_AUTHORITY` or an unreadable SSM parameter stops startup with a clear message. |
+
 ## MongoDB Atlas vector index (required for triage)
 
 Similar-incident search (`/api/oncall/analyze`, `/api/incidents/similar`) runs an Atlas

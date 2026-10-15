@@ -227,16 +227,20 @@ terraform apply -target=aws_ecr_repository.mcp
 ```
 
 **2. Create the three SSM parameters** (values are yours; `read -s` keeps the secret out of your
-shell history and the screen):
-```bash
-read -s -p "M2M client id: " V; echo
+shell history and the screen). These are **zsh** commands (the macOS default shell): the prompt goes
+inside the variable name as `"V?prompt"`. In bash, use `read -s -p "prompt: " V` instead.
+At each prompt, paste the value and press Enter; nothing is echoed for the `-s` ones.
+```zsh
+read -s "V?M2M client id: "; echo
 aws ssm put-parameter --region $REGION --type SecureString --name /oncall-helper/prod/Mcp__Auth0ClientId --value "$V"
-read -s -p "M2M client secret: " V; echo
+read -s "V?M2M client secret: "; echo
 aws ssm put-parameter --region $REGION --type SecureString --name /oncall-helper/prod/Mcp__Auth0ClientSecret --value "$V"
-read -p "Allowed Auth0 user id (auth0|...): " V
+read "V?Allowed Auth0 user id (e.g. auth0|... or google-oauth2|...): "
 aws ssm put-parameter --region $REGION --type SecureString --name /oncall-helper/prod/Mcp__AllowedUserIds --value "$V"
 unset V
 ```
+A successful call prints `"Version": 1`. An empty value is rejected by AWS ("length greater than or
+equal to 1"), which usually means the `read` prompt did not run (wrong shell syntax).
 Several users: comma-separate the ids in the last parameter.
 
 **3. Build for x86_64 and push** (`--provenance=false` is required, same as the API). The build context

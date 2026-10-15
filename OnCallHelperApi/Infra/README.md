@@ -264,13 +264,23 @@ the API's CloudFront domain. CloudFront takes ~5–15 min to deploy.
 terraform output mcp_cloudfront_domain
 ```
 
-**6. Verify** (no token must be rejected, and the sign-in metadata must be public):
+**6. Verify** (no token must be rejected, and the sign-in metadata must be public). Use **POST**, as a
+real MCP client does: a plain GET returns 405 in stateless mode, before the auth check.
 ```bash
 dig +short CNAME mcp.oncallhelper.com
-curl -si https://mcp.oncallhelper.com/ | head -5                 # expect 401 + WWW-Authenticate: Bearer resource_metadata=...
+curl -si -X POST https://mcp.oncallhelper.com/ \
+  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"probe","version":"1"}}}' \
+  | head -5        # expect HTTP 401 + WWW-Authenticate: Bearer resource_metadata="https://mcp.oncallhelper.com/.well-known/..."
 curl -s https://mcp.oncallhelper.com/.well-known/oauth-protected-resource   # JSON: resource + authorization_servers
 aws logs tail /aws/lambda/oncall-helper-mcp-prod --region $REGION --since 10m
 ```
+The `resource_metadata` URL must start with `https://mcp.oncallhelper.com`. If it shows an
+`execute-api.amazonaws.com` host, the host-rewrite in `HttpHost.cs` is missing (CloudFront replaces the
+Host header with the API Gateway hostname).
+
+To test before DNS exists, send the same requests to the CloudFront domain with
+`--resolve mcp.oncallhelper.com:443:$(dig +short <mcp_cloudfront_domain> | head -1)`.
 
 **7. Connect Claude.** In Claude: *Settings → Connectors → Add custom connector*, URL
 `https://mcp.oncallhelper.com`; under *Advanced settings* enter the **Client ID and Client Secret of the

@@ -75,6 +75,18 @@ public static class HttpHost
         if (allowed.Count == 0)
             app.Logger.LogWarning("MCP_ALLOWED_USER_IDS is empty: every request will be rejected.");
 
+        // Behind CloudFront the Host header is the API Gateway hostname, and the 401 challenge builds
+        // its metadata URL from the request. This server has exactly one public address, so use it.
+        var publicUri = new Uri(publicUrl);
+        app.Use((ctx, next) =>
+        {
+            ctx.Request.Scheme = publicUri.Scheme;
+            ctx.Request.Host = publicUri.IsDefaultPort
+                ? new HostString(publicUri.Host)
+                : new HostString(publicUri.Host, publicUri.Port);
+            return next();
+        });
+
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapMcp().RequireAuthorization(OwnerPolicy);

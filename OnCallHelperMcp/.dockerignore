@@ -1,0 +1,8 @@
+# Build artifacts (regenerated inside the image)
+bin/
+obj/
+
+# IDE / local files
+.idea/
+*.user
+*.DS_Store

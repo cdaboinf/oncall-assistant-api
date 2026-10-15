@@ -49,3 +49,35 @@ variable "mongo_connection_string_parameter_name" {
 variable "mongo_database_parameter_name" {
   type = string
 }
+
+# ---- Hosted MCP server (mcp.tf) ---------------------------------------------
+variable "mcp_app_name" {
+  type    = string
+  default = "oncall-helper-mcp"
+}
+
+# Public hostname of the MCP server. Must equal the Auth0 API identifier
+# (https://<this value>) because MCP clients send it as the OAuth `resource`.
+variable "mcp_custom_domain" {
+  type    = string
+  default = "mcp.oncallhelper.com"
+}
+
+# Set to the tag you pushed to the MCP ECR repository (see Infra/README.md).
+variable "mcp_image_tag" {
+  type = string
+}
+
+# SSM SecureString parameter NAMES. Values are created by hand with the AWS CLI,
+# never in Terraform or git.
+variable "mcp_auth0_client_id_parameter_name" {
+  type = string
+}
+
+variable "mcp_auth0_client_secret_parameter_name" {
+  type = string
+}
+
+variable "mcp_allowed_user_ids_parameter_name" {
+  type = string
+}

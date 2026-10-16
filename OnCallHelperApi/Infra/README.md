@@ -211,6 +211,10 @@ another user → 403; empty allowlist → everyone rejected.
 4. **Database connection → Settings:** *Disable Sign Ups* (create users in the dashboard instead).
 5. The existing machine-to-machine app (used for local calls to the API) must be authorized for
    `OnCallHelperApi`. Its client id/secret go into SSM below.
+6. **Authorize the `Claude connector` application for the MCP API** (easy to miss; without it sign-in
+   fails with "Client ... is not authorized to access resource server"): *Applications → APIs →
+   `OnCall Helper MCP` → Application Access* → `Claude connector` → grant **User-delegated Access**
+   only (not *Client Access*, which lets the app obtain tokens without a user).
 
 ### First deploy
 All commands run from this `Infra/` folder. Each step that changes AWS is preceded by `plan`.
@@ -298,7 +302,9 @@ it up on its next cold start. **Rollback:** set `mcp_image_tag` back to the prev
 | `plan` fails: "Push the MCP image … set mcp_image_tag" | `mcp_image_tag` is still `"unset"`. Do steps 1–3, then set the tag. |
 | `https://mcp.oncallhelper.com` 403 / "Bad request" from CloudFront | CNAME missing, or it points at the API's CloudFront domain. Use `terraform output mcp_cloudfront_domain`. |
 | Sign-in fails with an audience/userinfo error | *Resource Parameter Compatibility Profile* is off (Auth0 step 3), or the API identifier isn't exactly `https://mcp.oncallhelper.com` (no trailing slash). |
-| Sign-in works but every request is 403 | Your `sub` is not in `Mcp__AllowedUserIds` (check the exact `auth0\|…` id), or the parameter is empty. |
+| Sign-in fails; Auth0 log (Monitoring → Logs, type `f`) says "Client … is not authorized to access resource server" | The `Claude connector` application is not granted *User-delegated Access* on the `OnCall Helper MCP` API (Auth0 step 6). |
+| Auth0 shows a successful exchange (`seacft`) but Claude says "Authorization failed" | The token is valid but the signed-in user is not on the allowlist (the server answered 403). Check the user id in the Auth0 log entry against `Mcp__AllowedUserIds`. A browser with an existing Auth0 session (e.g. the web UI's) signs in as that user: use a private window or visit `https://<tenant>/v2/logout` first. |
+| Sign-in works but every request is 403 | Your `sub` is not in `Mcp__AllowedUserIds` (check the exact `auth0\|…` or `google-oauth2\|…` id), or the parameter is empty. |
 | Every request 401 after sign-in | Token audience/issuer mismatch: check `MCP_PUBLIC_URL`/`MCP_AUTHORITY` in the Lambda env and the Auth0 API identifier. |
 | Tools return "Auth0 rejected the token request" | Wrong M2M client id/secret in SSM, or the M2M app isn't authorized for `OnCallHelperApi`. |
 | Lambda fails to start | `aws logs tail /aws/lambda/oncall-helper-mcp-prod`. A missing `MCP_PUBLIC_URL`/`MCP_AUTHORITY` or an unreadable SSM parameter stops startup with a clear message. |

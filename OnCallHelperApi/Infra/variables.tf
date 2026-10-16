@@ -81,3 +81,29 @@ variable "mcp_auth0_client_secret_parameter_name" {
 variable "mcp_allowed_user_ids_parameter_name" {
   type = string
 }
+
+
+# ---- Request throttling at the API Gateway stages ------------------------------
+# Requests above these limits get a 429 *before* the Lambda runs, which bounds cost and noise.
+# API Gateway documents throttles as best-effort targets, and the limit may be applied per route
+# (each stage has two routes), so treat the real ceiling as up to ~2x. Raise during an incident
+# by changing the value and running plan/apply. Rate = steady requests/second; burst = short spike.
+variable "api_throttle_rate_limit" {
+  type    = number
+  default = 5
+}
+
+variable "api_throttle_burst_limit" {
+  type    = number
+  default = 20
+}
+
+variable "mcp_throttle_rate_limit" {
+  type    = number
+  default = 2
+}
+
+variable "mcp_throttle_burst_limit" {
+  type    = number
+  default = 10
+}

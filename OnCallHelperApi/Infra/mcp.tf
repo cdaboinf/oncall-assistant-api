@@ -168,6 +168,12 @@ resource "aws_apigatewayv2_stage" "mcp_default" {
   api_id      = aws_apigatewayv2_api.mcp.id
   name        = "$default"
   auto_deploy = true
+
+  # Cap request rate before the Lambda runs (excess gets 429). Best-effort target, see variables.tf.
+  default_route_settings {
+    throttling_rate_limit  = var.mcp_throttle_rate_limit
+    throttling_burst_limit = var.mcp_throttle_burst_limit
+  }
 }
 
 resource "aws_lambda_permission" "mcp_allow_api_gateway" {

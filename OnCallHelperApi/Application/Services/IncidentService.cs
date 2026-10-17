@@ -46,13 +46,17 @@ public class IncidentService : IIncidentService
                 Severity = request.Severity,
                 Description = request.Description
             },
-            Resolution = new IncidentResolution
-            {
-                RootCause = request.Resolution.RootCause,
-                Summary = request.Resolution.Summary,
-                StepsTaken = request.Resolution.StepsTaken,
-                ResolvedBy = request.Resolution.ResolvedBy
-            },
+            // An incident can be logged before it is resolved, so the resolution is optional
+            // (same null handling as UpdateAsync).
+            Resolution = request.Resolution != null
+                ? new IncidentResolution
+                {
+                    RootCause = request.Resolution.RootCause,
+                    Summary = request.Resolution.Summary,
+                    StepsTaken = request.Resolution.StepsTaken,
+                    ResolvedBy = request.Resolution.ResolvedBy
+                }
+                : null,
             CreatedAt = DateTime.UtcNow,
             // Generate embedding vector for the description
             Embedding = await _embeddingService.GetEmbeddingAsync(request.Description),

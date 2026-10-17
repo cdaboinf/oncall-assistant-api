@@ -177,13 +177,18 @@ public class OnCallTools(OnCallApiClient api)
     private static object BuildBody(string title, string description, string serviceName, string environment,
         string severity, string? rootCause, string? summary, string[]? steps, string? resolvedBy)
     {
-        var hasResolution = rootCause != null || summary != null || steps is { Length: > 0 } || resolvedBy != null;
+        // Always send a complete resolution object, like the UI does. The API's DTO treats all four
+        // fields as required, and older API builds fail with a 500 when the object is missing.
         return new
         {
             title, description, serviceName, environment, severity,
-            resolution = hasResolution
-                ? new { rootCause, summary, stepsTaken = steps?.ToList() ?? [], resolvedBy }
-                : null
+            resolution = new
+            {
+                rootCause = rootCause ?? "",
+                summary = summary ?? "",
+                stepsTaken = steps?.ToList() ?? [],
+                resolvedBy = resolvedBy ?? ""
+            }
         };
     }
 }

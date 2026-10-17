@@ -23,6 +23,17 @@ public static class ServerInstructions
         5. After resolution, offer to record it: `extract_incident_draft` can turn a pasted
            Slack/chat transcript into a draft; show the draft to the user, then `create_incident`.
 
+        Answering "have we seen this?" / "is this a known issue?" / "how was it resolved?":
+        - ALWAYS run a semantic search (`find_similar_incidents`, or `triage_incident`, which includes one) at least
+          once, even when the question contains an exact term such as an error code or status (504, 500). `search_incidents`
+          is a plain substring match ("timeout" does not match "timed out"), so it cannot show that nothing exists: use
+          it in addition, never instead. Do not answer "no, we have not seen this" on keyword results alone.
+        - Search with two or three phrasings (the symptom as reported, the likely cause in plain words, the key terms) and
+          merge the results. Only the incident description is searched here, so phrase queries as symptoms and causes.
+        - Scores are relative similarity (about 0.5 to 1). Judge by the gap between the best result and the rest: bunched
+          scores mean nothing stands out.
+        - Say in one short line what you searched, so the user can see how thorough a "no" is.
+
         Rules: never call `create_incident` or `update_incident` without the user's explicit go-ahead
         on the exact content. Triage output is AI-generated guidance, not ground truth; say so when
         confidence is low and never present suggested commands as already executed.

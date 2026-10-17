@@ -32,6 +32,8 @@ If `extract_incident_draft` is available, call it with the conversation text and
 Do not save anything yet. The search in step 3 uses only the short description, never the raw chat.
 
 ### 3. Search the history
+**Always run the semantic search.** For any "have we seen this", "is this a known issue" or "how was it resolved" question, call `find_similar_incidents` at least once, even when the question contains an exact term such as an error code or status (504, 500). Keyword search only finds the exact words, so it can never show that nothing exists: use it in addition, never instead, and never answer "no, we have not seen this" on keyword results alone. Say in one short line what you searched (for example "semantic search with three phrasings, plus keyword search for 504"), so the user can see how thorough a "no" is.
+
 Search more than once, because one phrasing misses things that another catches. Call `find_similar_incidents` (top 5) with two or three different phrasings and merge the results:
 - **The symptom as reported**: what happened, the service, the exact error text.
 - **The likely cause or fix in plain words**, for example "query timed out, split the work into smaller batches". On the local server the root cause and resolution summary are part of what is searched, so this finds incidents by how they were fixed. On the hosted server only the description is searched, so lean on the symptom and cause wording there.

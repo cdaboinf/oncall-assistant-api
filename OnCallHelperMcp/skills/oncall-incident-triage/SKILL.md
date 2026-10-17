@@ -32,9 +32,16 @@ If `extract_incident_draft` is available, call it with the conversation text and
 Do not save anything yet. The search in step 3 uses only the short description, never the raw chat.
 
 ### 3. Search the history
-Call `find_similar_incidents` (top 5) with a short description built from the symptoms, service, environment and exact error messages. Show the best matches with title, id, similarity score, root cause and how it was resolved.
+Search more than once, because one phrasing misses things that another catches. Call `find_similar_incidents` (top 5) with two or three different phrasings and merge the results:
+- **The symptom as reported**: what happened, the service, the exact error text.
+- **The likely cause or fix in plain words**, for example "query timed out, split the work into smaller batches". On the local server the root cause and resolution summary are part of what is searched, so this finds incidents by how they were fixed. On the hosted server only the description is searched, so lean on the symptom and cause wording there.
+- **The key terms alone**: a component name, an error code, a file or job type.
 
-Decide whether this is a known issue by judgment, not by a fixed cut-off. A high score (roughly 0.75 or more) together with the same service or symptoms, and a plausible same cause, is strong. A middling score or a different cause means "related, not the same". Explain your reasoning in one or two sentences. When it is genuinely unclear, say so and ask the user. Scores come from text similarity, so a high score can still be a different problem.
+Keyword search (`search_incidents`) is a plain substring match, so "timeout" will not match "timed out": try the variants, and add the service, severity, environment or date filters when you know them.
+
+Show the best matches with title, id, similarity score, root cause and how it was resolved, merged and without repeats.
+
+Decide whether this is a known issue by judgment, not by a fixed cut-off. Scores are relative similarity and sit in a narrow band (about 0.5 to 1), and the band differs between the hosted and local servers, so a number such as 0.8 can be a strong match on one and a weak one on the other. Read the **gap**: when the best result is clearly above the rest and the incident itself describes the same service, symptoms and a plausible same cause, it is a strong match. When the top scores are bunched together, nothing stands out, even if the numbers look high; say so plainly. A different cause means "related, not the same". Explain your reasoning in one or two sentences. When it is genuinely unclear, say so and ask the user at most one short question (service, error text, when it happened). Scores come from text similarity, so a high score can still be a different problem.
 
 ### 4a. If it looks known
 If `triage_incident` is available, call it with the description to get guidance grounded in those past incidents. If it is not (the local server), write that guidance yourself from the matches you already retrieved, using only what those incidents recorded. Lead with what resolved the earlier incident, then what to try now and in what order. Point out where this incident differs from the old one, because that is where the old fix may not apply.

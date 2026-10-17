@@ -68,7 +68,7 @@ public static class HttpHost
         builder.Services
             .AddMcpServer(ApiRegistration.ServerOptions)
             .WithHttpTransport(o => o.SessionMode = HttpServerSessionMode.Stateless)
-            .WithToolsFromAssembly()
+            .WithToolsFromAssembly(serializerOptions: ToolJson.Options)
             .WithPromptsFromAssembly();
 
         var app = builder.Build();

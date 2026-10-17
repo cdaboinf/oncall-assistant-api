@@ -14,7 +14,7 @@ public static class StdioHost
         builder.Services
             .AddMcpServer(ApiRegistration.ServerOptions)
             .WithStdioServerTransport()
-            .WithToolsFromAssembly()
+            .WithToolsFromAssembly(serializerOptions: ToolJson.Options)
             .WithPromptsFromAssembly();
 
         await builder.Build().RunAsync();

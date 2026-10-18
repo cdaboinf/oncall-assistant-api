@@ -4,6 +4,8 @@ using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.AspNetCore.Authentication;
 using ModelContextProtocol.Authentication;
 
+using OnCallHelperMcp.Tools;
+
 namespace OnCallHelperMcp.Hosting;
 
 /// <summary>
@@ -68,7 +70,7 @@ public static class HttpHost
         builder.Services
             .AddMcpServer(ApiRegistration.ServerOptions)
             .WithHttpTransport(o => o.SessionMode = HttpServerSessionMode.Stateless)
-            .WithToolsFromAssembly(serializerOptions: ToolJson.Options)
+            .WithLenientTools<OnCallTools>()
             .WithPromptsFromAssembly();
 
         var app = builder.Build();

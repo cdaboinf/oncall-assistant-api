@@ -1,3 +1,5 @@
+using OnCallHelperMcp.Tools;
+
 namespace OnCallHelperMcp.Hosting;
 
 public static class StdioHost
@@ -14,7 +16,7 @@ public static class StdioHost
         builder.Services
             .AddMcpServer(ApiRegistration.ServerOptions)
             .WithStdioServerTransport()
-            .WithToolsFromAssembly(serializerOptions: ToolJson.Options)
+            .WithLenientTools<OnCallTools>()
             .WithPromptsFromAssembly();
 
         await builder.Build().RunAsync();

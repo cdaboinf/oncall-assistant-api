@@ -65,7 +65,7 @@ public class OnCallTools(OnCallApiClient api)
     [McpServerTool(Name = "find_similar_incidents", ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("Semantic (vector) search over past incidents. Use for 'have we seen this before?' or to re-check matches after the situation changes. Cheaper than triage_incident: no AI guidance generated. Each result has a similarity score.")]
     public async Task<string> FindSimilarIncidents(
-        [Description("Natural-language description of the problem to match against history.")] string description,
+        [Description("REQUIRED. Natural-language description of the problem to match against history. This tool takes `description` (not `query`).")] string description,
         [Description("Number of results, 1-20.")] int top = 5,
         CancellationToken ct = default)
     {

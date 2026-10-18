@@ -65,12 +65,16 @@ public class OnCallTools(OnCallApiClient api)
     [McpServerTool(Name = "find_similar_incidents", ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("Semantic (vector) search over past incidents. Use for 'have we seen this before?' or to re-check matches after the situation changes. Cheaper than triage_incident: no AI guidance generated. Each result has a similarity score.")]
     public async Task<string> FindSimilarIncidents(
-        [Description("REQUIRED. Natural-language description of the problem to match against history. This tool takes `description` (not `query`).")] string description,
+        [Description("Natural-language description of the problem to match against history. Give this (or `query`).")] string? description = null,
+        [Description("Same as `description`; accepted so that either name works.")] string? query = null,
         [Description("Number of results, 1-20.")] int top = 5,
         CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(description)) throw new McpException("description is required.");
-        return Render(await api.FindSimilarAsync(description, Math.Clamp(top, 1, 20), ct));
+        // Both names are optional in the schema on purpose: a client that validates arguments before sending
+        // them rejects a call with the "wrong" name, and the model keeps mixing up description and query.
+        var text = !string.IsNullOrWhiteSpace(description) ? description : query;
+        if (string.IsNullOrWhiteSpace(text)) throw new McpException("description is required.");
+        return Render(await api.FindSimilarAsync(text, Math.Clamp(top, 1, 20), ct));
     }
 
     [McpServerTool(Name = "search_incidents", ReadOnly = true, Destructive = false, OpenWorld = false)]

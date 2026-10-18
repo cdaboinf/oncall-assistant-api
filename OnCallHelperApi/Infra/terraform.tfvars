@@ -20,7 +20,7 @@ mongo_connection_string_parameter_name = "/oncall-helper/prod/Mongo__ConnectionS
 mongo_database_parameter_name          = "/oncall-helper/prod/Mongo__Database"
 
 # Hosted MCP server. "unset" until the first image is pushed (the Lambda refuses to plan with it).
-mcp_image_tag = "cbae04f"
+mcp_image_tag = "1c500af"
 
 mcp_auth0_client_id_parameter_name     = "/oncall-helper/prod/Mcp__Auth0ClientId"
 mcp_auth0_client_secret_parameter_name = "/oncall-helper/prod/Mcp__Auth0ClientSecret"

@@ -78,7 +78,7 @@ public class OnCallTools(OnCallApiClient api)
     }
 
     [McpServerTool(Name = "search_incidents", ReadOnly = true, Destructive = false, OpenWorld = false)]
-    [Description("Keyword/filter search over incident history (not semantic). All filters optional; with none, returns the most recent incidents. Use for questions like 'sev1s on payments in prod this month'.")]
+    [Description("Keyword/filter search over incident history. All filters optional; with none, returns the most recent incidents. The text query is a plain substring match on title, description and service name, so \"timeout\" does not match \"timed out\" and an empty keywordMatches list NEVER means nothing similar exists. When you give a text query, the response also carries semanticMatches (closest incidents by meaning, with relative scores): read both. For any 'have we seen this / known issue' question also call find_similar_incidents with a plain-words description of the problem.")]
     public async Task<string> SearchIncidents(
         [Description("Free-text term matched against title, description and service name.")] string? query = null,
         [Description("Exact service name.")] string? serviceName = null,
@@ -99,7 +99,19 @@ public class OnCallTools(OnCallApiClient api)
             ["to"] = to,
             ["limit"] = Math.Clamp(limit, 1, 100).ToString()
         }, ct);
-        return Render(result);
+        if (string.IsNullOrWhiteSpace(query)) return Render(result);
+
+        // A text query is also searched by meaning, so an empty keyword list is never mistaken for "no history".
+        // If the semantic part fails, still return the keyword results and say so.
+        JsonElement? semantic = null;
+        string note = "keywordMatches is an exact-text match only. semanticMatches are the closest incidents by meaning (scores are relative, about 0.5 to 1): judge by the gap between the best and the rest, and by reading them.";
+        try { semantic = await api.FindSimilarAsync(query, 5, ct); }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            note = "The semantic search failed (" + e.Message + "), so only keyword matches are shown. Do not conclude that nothing similar exists; try find_similar_incidents.";
+        }
+
+        return Render(JsonSerializer.SerializeToElement(new { keywordMatches = result, semanticMatches = semantic, note }));
     }
 
     [McpServerTool(Name = "extract_incident_draft", ReadOnly = true, Destructive = false, OpenWorld = false)]

@@ -1,9 +1,14 @@
 ---
-name: oncall-incident-triage
-description: Triage an on-call or production issue from a pasted or attached Slack conversation, alert, or incident notes. Finds whether the issue already exists in the team's incident history, returns the past resolution and suggested actions, otherwise drafts a new incident (saved only after the user approves), and later updates it with the resolution. Can optionally check GitLab for code-related causes and search Confluence for runbooks. Use this whenever the user shares text or a file about a page, outage, error, alert, or incident, or asks "have we seen this before", "is this a known issue", "log this incident", "find similar incidents", or "update the incident with the resolution", even if they do not mention this skill by name.
+name: triage
+description: Incident triage mode for on-call work. Use ONLY when the user explicitly starts it, by typing "/triage" or "triage this", "run triage", "log this incident", or by naming this skill, usually followed by a pasted Slack conversation, alert or incident notes. Do NOT use for ordinary questions about errors, logs or code. Once started, treat the pasted text and every follow-up question in that chat as being about the incident: check the team's incident history for the same issue, return the past resolution and suggested actions, otherwise draft a new incident (saved only after the user approves) and later update it with the resolution. Can optionally check GitLab for code-related causes, and search Confluence for runbooks when the user asks or when no solution was found.
 ---
 
 # On-call incident triage
+
+## How this starts and how long it lasts
+Start only on an explicit trigger: the user types `/triage` (or "triage this", "run triage", "log this incident") or names this skill. Everything after the trigger is the input: pasted Slack text, an attached file, or a short description. If the trigger comes with nothing to work on, ask the user to paste the conversation or describe the problem. Do not start on ordinary messages, even ones that mention errors or outages.
+
+Once started, stay in triage mode for the rest of the conversation: treat pasted text and follow-up questions as being about this incident or the incident history (searching, comparing, updating) until the user says they are done or changes topic.
 
 Help an on-call engineer who is under pressure. The goal is a fast, honest answer to three questions: have we seen this before, what fixed it last time, and if it is new, what should we record so the next person benefits. The incident history is only useful if it stays clean, so saving to it needs care (see "What may be saved").
 
@@ -12,7 +17,7 @@ Help an on-call engineer who is under pressure. The goal is a fast, honest answe
   - **OnCall Helper (hosted connector, `mcp.oncallhelper.com`)**. Tools: `extract_incident_draft`, `find_similar_incidents`, `triage_incident`, `search_incidents`, `create_incident`, `update_incident`.
   - **OnCall Helper Local (`oncall-helper-local`, runs in Docker on the user's laptop)**. Tools: `find_similar_incidents`, `search_incidents`, `create_incident`, `update_incident` only. It has no extraction or triage tools: you do that work yourself (steps 2 and 4a). Its data is separate from the hosted history.
 - **GitLab connector** (optional, read-only): find repositories, merge requests, commits, tags and releases.
-- **Confluence connector** (optional, read-only, only when the user asks): find runbooks.
+- **Confluence connector** (optional, read-only): find runbooks, only when the user asks or when no solution was found (see step 5b).
 
 Refer to GitLab and Confluence by what they do, because their tool names vary. If a connector the task needs is missing or returns an error, say so plainly and continue with what you have.
 
@@ -48,8 +53,8 @@ Decide whether this is a known issue by judgment, not by a fixed cut-off. Scores
 ### 4a. If it looks known
 If `triage_incident` is available, call it with the description to get guidance grounded in those past incidents. If it is not (the local server), write that guidance yourself from the matches you already retrieved, using only what those incidents recorded. Lead with what resolved the earlier incident, then what to try now and in what order. Point out where this incident differs from the old one, because that is where the old fix may not apply.
 
-### 4b. If it looks new
-Say so, and go to step 6.
+### 4b. If it looks new, or the past incidents give no usable solution
+Say so. Then **offer** the optional checks instead of running them unasked: "I found no recorded solution. Want me to look for a runbook in Confluence (and check GitLab for a recent change)?" If the user says yes, do step 5b (and step 5 if code is a plausible cause). Then go to step 6.
 
 ### 5. Optional code check (GitLab)
 Only do this when code is a plausible cause. Choose a mode from the evidence, **tell the user which mode you chose and why**, and let them override:
@@ -60,8 +65,14 @@ Only do this when code is a plausible cause. Choose a mode from the evidence, **
 
 Ask for the GitLab group only if you do not already know it. Do not scan a whole group blindly: narrow to repositories that match the service or keywords, look at a handful first, and ask before widening. Show what you found with links, label what is confirmed versus suspected, and never state that a change caused the incident without evidence. GitLab is read-only.
 
-### 5b. Optional runbooks (Confluence)
-Only when the user asks. Search by service and symptom, then give page titles and links with a short summary in your own words.
+### 5b. Runbooks (Confluence)
+Run this when the user asks for a runbook, or when the user accepts your offer in step 4b. Do not run it on your own otherwise.
+
+- Search Confluence two or three times with different wording, like the incident search: the service and the symptom as reported; the likely cause or fix in plain words; the key terms alone (component, error code, job name). Prefer runbook, playbook, troubleshooting and on-call pages.
+- Give up to three pages, each as: title, link, and one line in your own words about what it covers. Then say whether a page actually applies to this incident, which part of it, and in what order its steps would be used. Do not claim a page solves the incident unless its content matches the service and symptom.
+- If nothing relevant is found, say so plainly (and which searches you ran) and suggest writing a runbook as a follow-up. Do not invent a procedure from general knowledge and present it as the team's runbook.
+- Read-only. Never copy Confluence text into an incident or into the OnCall Helper tools. A page title and link may be recorded as a reference when saving.
+- If the Confluence connector is missing or returns an error, say so in one line and carry on with what you have.
 
 ### 6. Save a new incident (after approval)
 Search again right before creating, to avoid a duplicate. Show the user the exact record you intend to save (title, description, service, environment, severity, and the resolution if known) and wait for a clear yes. Then call `create_incident`.
@@ -84,6 +95,7 @@ Keep it short and practical. Use this shape and drop any part that does not appl
 1. **Verdict**: known issue, related to past incidents, or new, with your confidence.
 2. **Evidence**: the matching incidents (title, id, score, root cause and resolution).
 3. **What to try**: ordered steps, each tied to its source.
+3b. **Runbook**: only if step 5b ran: the pages found, whether one applies, and which part, or that none was found.
 4. **Code findings**: only if step 5 ran, with links and what is confirmed versus suspected.
 5. **Proposed record**: for a new incident or an update, shown for approval.
 
